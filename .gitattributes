@@ -1,0 +1,4 @@
+# 정규 출력(SDD-02 §6-1)이 LF 를 요구한다. 전역 autocrlf 와 무관하게 저장소는 LF.
+* text=auto eol=lf
+*.png binary
+*.gif binary
