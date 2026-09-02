@@ -1,0 +1,14 @@
+# Serena (로컬 메모리·캐시 — 사용자 결정 2026-09-03)
+.serena/
+
+# Node / Vite (M0 부터)
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# 편집기·OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
