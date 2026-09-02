@@ -57,7 +57,7 @@ SDD-02 §6 의 부분집합만. 구현 순서:
 - `AuthoringValidator.Validate(doc, EnemyNames) → List<Issue { Id, Severity, Path, Message }>`.
   규칙 ID·심각도·조건은 SDD-02 §5 표와 **글자까지 같다.** 툴 쪽 `core/validate` 와 차이가 나면 이 SDD 가 이기고 둘 다 고친다.
 - `EnemyNames` 는 `AssetDatabase.FindAssets("t:EnemyDefinition")` 로 모은 **에셋 파일명** (`Robot_Walker`). `_displayName`(`워커`)이 아니다 — 표시명은 바뀌어도 되는 값이라 참조 키로 쓰면 안 된다. V-S01 은 여기서 ❌ 다.
-- 공유 픽스처: 에디터 저장소 `docs/fixtures/` 의 파일을 그대로 읽는다 (경로 상수 하나, SDD-06 §3). 규칙 ID 당 픽스처 하나가 **정확히 그 ID 하나만** 내는지 테스트.
+- 공유 픽스처: 에디터 저장소 `docs/fixtures/` 가 원본, 게임 레포 `Tests/Authoring/Fixtures/` 가 **사본** (`npm run sync:fixtures` 로만 갱신, SDD-06 §3). 규칙 ID 당 픽스처 하나가 **정확히 그 ID 하나만** 내는지 테스트.
 
 ## 5. 신규 SO `[D-05-05]`
 
@@ -137,6 +137,7 @@ Import(path):
 - 출력: SDD-02 §6-1 정규 출력. `float` 은 `ToString("R", InvariantCulture)` — `double` 로 올리면 `0.41999998` 이 나온다.
 - 용도: (1) **씨앗 생성** — 기획자가 빈 화면에서 시작하지 않게. `docs/examples/Stage_Greybox.toon` 이 이 결과와 바이트 동일해야 한다 (SDD-06 §2 골든). (2) 개발자가 인스펙터로 튜닝한 값을 파일로 회수.
 - 방향은 단방향이 원칙(파일 → SO). Export 는 명시적 조작이고, 겹치면 파일이 이긴다 (ADR-0022).
+- **수치 소유권 (2026-09-03 사용자 확정):** 파일이 원본이지만 **개발자의 인스펙터 튜닝은 허용** 한다. 대신 튜닝한 값은 **Export 로 파일에 되돌려 놓아야 살아남는다** — 다음 임포트가 덮어쓴다. `AuthoringWindow` 는 SO 가 파일보다 새로우면(에셋 수정 시각 > 파일 수정 시각) 임포트 전에 경고한다.
 
 ## 9. 창 `AuthoringWindow` `[D-05-09]`
 

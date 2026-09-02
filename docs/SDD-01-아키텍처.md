@@ -148,7 +148,7 @@ hex 는 `round(v*255)` 로 계산했다 (감마 변환 없음). Unity 컬러스�
 | TOON 복사 | `navigator.clipboard.writeText` | 텍스트 영역 선택 | LLM 프롬프트 경로. **브라우저가 저장을 막는 최악의 환경에서도 이 경로는 남는다** |
 | 초안 복구 | `localStorage` 에 5초 디바운스로 현재 문서 저장 | — | 브라우저 탭이 죽었을 때 복구용. **진실이 아니다** — 열 때 "복구할까요?" 만 묻는다 |
 
-- `file://` 로 열린 페이지에서도 FSAA 는 동작한다 (사용자 제스처 필요). 웹 배포는 하지 않으므로 CORS·다운로드 차단 이슈가 없다.
+- `file://` 로 열린 페이지에서도 FSAA 는 동작한다 (사용자 제스처 필요). 정적 호스팅(ADR-E01)에서는 **HTTPS 가 보안 컨텍스트를 만들어** 같은 API 가 그대로 동작한다. 서버로 가는 요청은 HTML 한 번뿐이라 CORS 이슈가 없다.
 - 파일 인코딩 UTF-8, 줄 끝 `\n`. 한글 표시 이름(`쉬움`)이 들어가므로 BOM 은 붙이지 않는다 (git diff 와 C# 파서 둘 다에 불필요).
 
 ## 7. 검증·시뮬 실행 시점 `[D-01-07]`
@@ -169,7 +169,11 @@ hex 는 `round(v*255)` 로 계산했다 (감마 변환 없음). Unity 컬러스�
 npm run dev      개발 서버 (HMR)
 npm test         vitest (core 전부 + 헤더 게이트 + 골든 왕복)
 npm run build    dist/pmf-editor.html  ← 기획자에게 주는 유일한 파일
+npm run deploy   위 파일을 VPS 웹루트로 (tar → scp → 전개. 로컬에 rsync 가 없다). 서브도메인·웹루트는 M2 배포 때 정한다
 ```
+
+**호스팅 규약 (ADR-E01):** Caddy 정적 사이트 블록 하나, 웹루트 `/var/www/pmf-editor` (www-data, 755/644), 파일은 `index.html` 하나. 백엔드 없음.
+캐시 방지를 위해 HTML 에 `Cache-Control: no-cache` 헤더를 Caddy 에서 붙인다 — 기획자가 옛 버전을 붙들고 있지 않게.
 
 산출 HTML 은 **버전 문자열** (`package.json` version + 빌드 시각) 을 상단 바에 표시하고, 저장하는 `.toon` 첫 주석에도 넣는다.
 기획자가 "어느 버전 툴로 만든 파일인지" 를 말할 수 있어야 문제를 재현할 수 있다.

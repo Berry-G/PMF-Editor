@@ -48,7 +48,10 @@ docs/fixtures/
 ```
 
 - **파일명 = 규칙 ID.** 파일은 `minimal.toon` 에서 **딱 하나만** 어긋나게 만든다. 테스트는 "이 파일이 정확히 이 ID 를, 그리고 다른 ❌ 는 내지 않는다" 를 확인한다.
-- 툴(`core/validate.test.ts`)과 게임(`ValidatorFixtureTests.cs`)이 **같은 파일** 을 읽는다. 게임 쪽은 경로 상수 하나 (`../Prowl's Moving Factory Editor/docs/fixtures`, 상대경로; 없으면 테스트를 `Ignore` 로 표시하고 이유를 찍는다 — 조용히 통과시키지 않는다).
+- **원본은 이 저장소, 게임 레포는 사본을 갖는다** (2026-09-03 사용자 확정 — 게임 레포 단독으로 테스트가 돌아야 한다).
+  사본 위치: 게임 `Assets/_Project/Scripts/Tests/Authoring/Fixtures/` (Unity 가 `.toon` 을 임포트하지 않도록 `.toon.txt` 로 복사하거나 `TextAsset` 로 — M5 에서 결정).
+  동기화: 에디터 저장소의 `npm run sync:fixtures` 가 게임 레포 경로로 복사한다. **손으로 복사하지 않는다.**
+  어긋남 방지: 에디터 쪽 `fixtures-sync.test.ts` 가 게임 레포가 로컬에 있으면 사본과 해시를 비교해 다르면 실패시킨다 (없으면 skip + 이유 출력). 규칙을 바꾸면 `sync` 를 돌리고 두 레포에 각각 커밋한다.
 - 규칙을 추가·삭제하면 픽스처도 같이. SDD-02 §5 표의 ID 집합 == `invalid/` 파일명 집합 을 검사하는 테스트를 둔다 (표는 문서라 테스트가 못 읽으므로, `core/validate/rules.ts` 의 ID 목록과 대조).
 - V-S01 은 툴에서 ⚠️, 임포터에서 ❌ 다. 픽스처 하나로 두 테스트가 각자 기대 심각도를 본다.
 
