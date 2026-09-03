@@ -64,7 +64,7 @@
 ### 1-2. `vite.config.ts`
 
 ```ts
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';   // 왜 'vite' 가 아닌가: test 필드를 같은 파일에 두려면 vitest 확장판이 필요하다
 import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   plugins: [viteSingleFile()],

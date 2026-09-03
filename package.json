@@ -1,0 +1,24 @@
+{
+  "name": "pmf-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Prowl's Moving Factory 스테이지 에디터 — 기획자가 Unity 없이 맵·경로·스폰·밸런스를 편집한다",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:size": "node scripts/check-size.mjs",
+    "sync:fixtures": "node scripts/sync-fixtures.mjs",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.1",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vite-plugin-singlefile": "2.3.3",
+    "vitest": "5.0.0"
+  }
+}

@@ -1,0 +1,143 @@
+/*
+  목적: 유일한 스타일시트. SDD-08 §11 의 DOM 골격에 CSS Grid 레이아웃을 입힌다.
+  왜 이 구조인가: 파일 하나로 빌드되므로 CSS 도 하나여야 인라인 결과가 단순하다.
+    색은 팔레트(core/palette.ts)와 어긋나면 안 되는 값만 여기 둔다 — 나머지는 캔버스가 그린다.
+  바꾸면 안 되는 것: `#canvas-wrap` 의 `overflow:hidden` 과 `position:relative`
+    (캔버스 크기를 ResizeObserver 로 재는 기준이다). 레이아웃 영역 이름(grid-template-areas).
+  근거: SDD-03 §1 [D-03-01], SDD-08 §11 [D-08-11]
+*/
+
+:root {
+  --bg: #141419;
+  --panel: #1b1b21;
+  --border: #2c2c34;
+  --text: #d6d6db;
+  --text-dim: #8a8a93;
+  --accent: #4da3ff;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font:
+    13px/1.5 'Malgun Gothic',
+    system-ui,
+    sans-serif;
+}
+
+#app {
+  display: grid;
+  grid-template-columns: 168px 1fr 240px;
+  grid-template-rows: 40px 1fr 200px;
+  grid-template-areas:
+    'topbar topbar topbar'
+    'left   canvas right'
+    'bottom bottom bottom';
+  height: 100%;
+}
+
+#topbar {
+  grid-area: topbar;
+}
+#left {
+  grid-area: left;
+  overflow-y: auto;
+}
+#canvas-wrap {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+}
+#right {
+  grid-area: right;
+  overflow-y: auto;
+}
+#bottom {
+  grid-area: bottom;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#topbar,
+#left,
+#right,
+#bottom {
+  background: var(--panel);
+  border: 0 solid var(--border);
+}
+#topbar {
+  border-bottom-width: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+#left {
+  border-right-width: 1px;
+}
+#right {
+  border-left-width: 1px;
+}
+#bottom {
+  border-top-width: 1px;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#statusbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 3px 8px;
+  background: rgba(20, 20, 25, 0.85);
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#right > section {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+#minimap-canvas {
+  display: block;
+  width: 100%;
+  background: var(--bg);
+}
+
+#tab-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px;
+}
+
+.version {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.section-title {
+  color: var(--text-dim);
+  text-transform: none;
+  margin: 0 0 6px;
+  font-size: 12px;
+}

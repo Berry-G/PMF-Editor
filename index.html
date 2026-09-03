@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PMF Editor</title>
+  </head>
+  <body>
+    <!--
+      SDD-08 §11 [D-08-11] 의 DOM 골격이다. 각 패널은 자기 요소 안에만 그린다.
+      요소를 추가·개명하려면 SDD-08 을 먼저 고쳐라 — 패널 코드가 이 id 로 붙는다.
+    -->
+    <div id="app">
+      <header id="topbar"></header>
+      <aside id="left">
+        <section id="palette"></section>
+        <section id="tools"></section>
+      </aside>
+      <main id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <div id="statusbar"></div>
+      </main>
+      <aside id="right">
+        <section id="props"></section>
+        <section id="minimap"><canvas id="minimap-canvas"></canvas></section>
+        <section id="layers"></section>
+      </aside>
+      <footer id="bottom">
+        <nav id="tabs"></nav>
+        <div id="tab-body"></div>
+      </footer>
+      <div id="dialogs"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
