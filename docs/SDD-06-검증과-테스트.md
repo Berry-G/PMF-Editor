@@ -63,6 +63,10 @@ docs/fixtures/
 | `core-purity.test.ts` | `src/core/**` 에 `document`·`window`·`navigator`·`localStorage`·`fetch`·`import … from '../ui` 문자열 없음 | SDD-01 §2 계층 분리 |
 | `palette-source.test.ts` | `core/palette.ts` 의 각 색 상수 옆 줄에 `출처:` 주석 | ADR-E09 |
 | `schema-version.test.ts` | `SCHEMA` 상수와 씨앗·픽스처의 `schema:` 줄이 같다 | 버전 올릴 때 하나라도 빠뜨리면 즉시 |
+| `fixtures-sync.test.ts` | 게임 레포가 형제 폴더에 있으면 픽스처 사본과 해시 비교. 없으면 skip + 이유 출력 | §3 |
+| `rules-fixtures.test.ts` | `RULE_IDS` 집합 == `docs/fixtures/invalid/*.toon` 파일명 집합 | 규칙과 픽스처가 같이 움직이게 |
+
+정규식·판정 기준은 SDD-08 §12 (헤더), 나머지는 파일 내용 grep.
 
 ## 5. 커맨드 테스트 `[D-06-05]`
 
