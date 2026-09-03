@@ -39,7 +39,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/postbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "check:size": "node scripts/check-size.mjs",
@@ -55,6 +56,9 @@
 }
 ```
 `latest-stable` 은 자리표시자다 — M0 에서 `npm view <pkg> version` 으로 확인한 **정확한 버전을 고정** 하라 (`^` 없이). `dependencies` 항목은 존재하지 않아야 한다.
+M0(2026-09-04) 에서 고정한 값: `typescript 7.0.2`, `vite 8.2.2`, `vitest 5.0.0`, `vite-plugin-singlefile 2.3.3`, `@types/node 26.4.1`.
+
+`build` 가 `tsc --noEmit` 으로 시작하는 이유: `vite build` 는 타입을 검사하지 않는다. 없으면 타입 오류가 그대로 산출물이 되어 기획자 앞에서 터진다.
 
 - `scripts/postbuild.mjs`: `dist/index.html` → `dist/pmf-editor.html` 로 이름 변경. 그 외 산출물이 있으면 실패 (단일 파일이 깨졌다는 뜻).
 - `scripts/check-size.mjs`: `dist/pmf-editor.html` 이 1,048,576 바이트를 넘으면 exit 1.
@@ -89,11 +93,14 @@ export default defineConfig({
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true, "noUncheckedIndexedAccess": true, "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true, "noFallthroughCasesInSwitch": true, "noUnusedLocals": true,
-    "isolatedModules": true, "skipLibCheck": true, "types": ["vite/client"]
+    "noUnusedParameters": true, "isolatedModules": true, "verbatimModuleSyntax": true,
+    "skipLibCheck": true, "noEmit": true, "resolveJsonModule": true,
+    "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "scripts"]
+  "include": ["src", "tests", "vite.config.ts"]
 }
 ```
+`scripts/` 는 `.mjs` 라 타입 검사 대상이 아니다(그래서 `include` 에 없다). 헤더 게이트는 별도로 검사한다.
 `noUncheckedIndexedAccess` 때문에 `cells[i]` 는 `number | undefined` 다. `core/model/map.ts` 의 `cellAt` 만 배열을 직접 인덱싱하고, 나머지는 그것을 쓴다.
 
 ### 1-4. 폴더와 파일 (M0~M4 에서 생기는 것 전부)
@@ -103,7 +110,8 @@ src/
   main.ts                       조립만. 로직 없음
   styles.css                    단일 스타일시트 (다크, 시스템 폰트)
   core/
-    model/cell.ts               Cell enum, 문자 매핑, 통행 술어
+    schema.ts                   SCHEMA 상수 (코덱·게이트가 함께 본다)
+    model/cell.ts               Cell enum, 문자 매핑, 표시 이름, 팔레트 순서, 통행 술어
     model/stage.ts              StageDocument 와 하위 타입 (SDD-02 §1 그대로)
     model/map.ts                MapData 생성·조회·불변 갱신
     model/factory.ts            createEmptyStage, SEED (씨앗 내장)
@@ -146,7 +154,9 @@ src/
     input/tools/*.ts            brush line rect fill select eyedropper node edge object
     panels/topbar.ts palette.ts props.ts layers.ts tabs/*.ts validation.ts status.ts sim.ts
 tests/
+  util/walk.ts                게이트 공용 파일 순회 (ROOT, walk, read)
   gates/header-gate.test.ts core-purity.test.ts palette-source.test.ts schema-version.test.ts fixtures-sync.test.ts
+  gates/rules-fixtures.test.ts   (M1)
   golden/seed.test.ts         씨앗 왕복·통계·도달 영역
   sim/regression.test.ts      119 / 56 / 402
 ```
@@ -161,6 +171,8 @@ export const CELL_TO_CHAR: Readonly<Record<Cell, string>>;        // { Empty:'_'
 export function cellFromChar(ch: string): Cell | undefined;
 export function isAllyWalkable(c: Cell): boolean;                  // Ground | Buildable | VillageSlot
 export function isRuntimeWalkable(c: Cell): boolean;               // !Blocked && !Water && !Empty  (게임 IsWalkable)
+export const CELL_LABEL: Readonly<Record<Cell, string>>;           // 한국어 표시 이름. 검증 메시지와 팔레트가 같은 문구를 쓴다
+export const PALETTE_ORDER: readonly Cell[];                       // 팔레트 순서 = 단축키 1~7 (SDD-03 §2)
 
 // map.ts
 export interface XY { readonly x: number; readonly y: number }
@@ -342,7 +354,9 @@ export const EDGE: Readonly<{ normal: string; shortcut: string; dash: number }>;
 export const UI: Readonly<{ selection: string; reach: string[]; unreachHatch: string; error: string; warning: string; grid: string; gridMajor: string; brushPreview: string }>;   // 툴 전용. 출처 주석 불필요
 export const TOOL_VERSION: string;   // version.ts — vite define 으로 package.json version + 빌드 시각(UTC, 분 단위)
 ```
-`COLOR`·`ACTOR`·`ACTOR_SCALE`·`EDGE` 의 **모든 값 옆 줄** 에 `// 출처: 파일:라인`. 게이트 테스트가 `팔레트 값 정규식 → 다음 줄 또는 같은 줄에 출처:` 를 검사한다.
+`COLOR`·`ACTOR`·`ACTOR_SCALE`·`EDGE` 의 **모든 값 같은 줄** 에 `// 출처: 파일:라인`.
+게이트는 파일을 두 구역으로 나눠 본다: 줄 시작의 `/* @출처-불필요` 마커 **위쪽** 의 색 리터럴은 출처가 필수, 아래쪽(툴 전용 `UI` 색)은 면제.
+새 게임 색은 반드시 마커 위에 둔다. `EDGE` 에는 노드 색 3종(`nodeStart`/`nodeExit`/`nodeNormal`)도 포함한다.
 
 ## 9. `io/` `[D-08-09]`
 
