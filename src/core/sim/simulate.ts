@@ -31,7 +31,7 @@ function onEscorteeNode(st: SimState, ni: number): void {
 function enterBurst(st: SimState, ti: number): void {
   st.mother.state = 'burst'; st.mother.burstLeft = st.burst.duration; st.mother.burstSpawned = 0;
   st.paramN = st.burst.volleyCount; st.paramRest = st.burst.restSeconds;
-  st.rhythm = { phase: 'rest', restLeft: st.burst.restSeconds, volleyLeft: 0, spacingLeft: 0 };
+  st.rhythm = { phase: 'volley', restLeft: 0, volleyLeft: st.burst.volleyCount, spacingLeft: 0 };
   st.bursts.push({ triggerId: st.nodes[ti]!.id, start: st.time, end: 0, spawned: 0, payback: 0 });
 }
 function exitBurst(st: SimState): void {
@@ -53,9 +53,9 @@ function tickRhythm(st: SimState, dt: number): void {
       const e: Actor = { name, speed: spd, pos: { ...st.mother.pos }, route: [], seg: 0, t: 0, currentNode: st.mother.currentNode };
       recalcEnemy(e, st); st.enemies.push(e); st.spawnEvents.push({ t: st.time, enemy: name, at: { ...st.mother.pos } });
       if (st.mother.state === 'burst') st.mother.burstSpawned++;
-      st.rhythm.volleyLeft--; st.rhythm.spacingLeft += st.spawn.volleySpacing;
+      st.rhythm.volleyLeft--; if (st.rhythm.volleyLeft > 0) st.rhythm.spacingLeft += st.spawn.volleySpacing;
     }
-    if (st.rhythm.volleyLeft === 0) st.rhythm = { phase: 'rest', restLeft: st.paramRest + st.rhythm.spacingLeft, volleyLeft: 0, spacingLeft: 0 };
+    if (st.rhythm.volleyLeft === 0) st.rhythm = { phase: 'rest', restLeft: st.paramRest, volleyLeft: 0, spacingLeft: 0 };
   }
 }
 function recalcMother(st: SimState): void {
@@ -111,3 +111,4 @@ export function simulate(doc: StageDocument, params: SimParams, catalog: readonl
   if (st.time >= st.maxSeconds) st.warnings.push('보호대상이 도착하지 못했다');
   return { seed: params.seed, dt: params.dt, stageSeconds: st.time, totalSpawned: total, spawnedByEnemy: sbe, incomeCeiling: ic, bursts: st.bursts, samples: st.samples, spawnEvents: st.spawnEvents, contacts: st.contacts, warnings: st.warnings };
 }
+
