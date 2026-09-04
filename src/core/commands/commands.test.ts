@@ -1,9 +1,8 @@
 /**
  * 목적: 모든 커맨드의 왕복 검증. undo(do(doc)) === doc, do(undo(do(doc))) === do(doc).
- * 왜 이 구조인가: SDD-06 §5 가 요구한 테스트. 지난 라운드에서 setField/setTable/deleteNode
- *   가 이 테스트 없이 파손된 채로 통과했다. 먼저 쓰고 실패를 확인한 뒤 고친다.
- * 바꾸면 안 되는 것: 각 커맨드의 세 가지 단언 — undo(do) deepEqual doc, do(undo(do)) deepEqual do(doc),
- *   원본 doc 이 변경되지 않음 (in-place 금지).
+ * 왜 이 구조인가: SDD-06 §5 요구. runRoundtrip 첫 인자는 **커맨드 생성 함수 이름**으로 통일.
+ *   commands-coverage.test.ts 게이트가 이 문자열을 파싱해 보장한다.
+ * 바꾸면 안 되는 것: 세 단언 — undo(do) deepEqual doc, do(undo(do)) deepEqual do(doc), in-place 금지.
  * 근거: SDD-06 §5 [D-06-05], SDD-09 §8 [D-09-08]
  */
 import { describe, expect, it } from 'vitest';
@@ -13,147 +12,62 @@ import { fileURLToPath } from 'node:url';
 import { decode } from '../toon/decode.js';
 import { stageEquals } from '../model/equals.js';
 import { Cell } from '../model/cell.js';
-import { paintCells } from './paint.js';
+import { paintCells, pasteCells, type Clipboard } from './paint.js';
 import { resizeMap, setField, setTable } from './fields.js';
 import { addNode, moveNode, deleteNode, renameNode, setNodeRole } from './nodes.js';
 import { addEdge, deleteEdge, setEdgeProps } from './edges.js';
-import type { StageDocument, PathNode, PathEdge } from '../model/stage.js';
+import type { Command } from './command.js';
+import type { StageDocument } from '../model/stage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED_PATH = join(__dirname, '..', '..', '..', 'docs', 'examples', 'Stage_Greybox.toon');
 const SEED_TEXT = readFileSync(SEED_PATH, 'utf8');
 const SEED = (decode(SEED_TEXT) as { ok: true; value: StageDocument }).value;
 
-function clone(doc: StageDocument): StageDocument {
-  const c = JSON.parse(JSON.stringify(doc)) as StageDocument;
-  // 왜: JSON 직렬화는 Uint8Array 를 plain object 로 바꾼다. cells 는 명시적으로 복사한다.
-  c.map.cells = new Uint8Array(doc.map.cells);
+function clone(d: StageDocument): StageDocument {
+  const c = JSON.parse(JSON.stringify(d)) as StageDocument;
+  c.map.cells = new Uint8Array(d.map.cells);
   return c;
 }
 
-function runRoundtrip(cmdLabel: string, doc: StageDocument, cmd: any) {
-  // 왜: 세 가지 단언 — 원상 복구, 재적용 일치, in-place 금지
+function runRoundtrip(name: string, doc: StageDocument, cmd: Command) {
   const orig = clone(doc);
   const after = cmd.apply(doc);
-  expect(after, `${cmdLabel}: apply 가 새 문서를 반환해야 한다`).not.toBe(doc);
-  const reverted = cmd.revert(after);
-  expect(stageEquals(reverted, doc), `${cmdLabel}: undo(do(doc)) deepEqual doc`).toBe(true);
-  const reapplied = cmd.apply(reverted);
-  expect(stageEquals(reapplied, after), `${cmdLabel}: do(undo(do(doc))) deepEqual do(doc)`).toBe(true);
-  expect(stageEquals(doc, orig), `${cmdLabel}: 원본 doc 이 변경되지 않았다 (in-place 금지)`).toBe(true);
+  expect(after, name + ': apply returns new doc').not.toBe(doc);
+  expect(stageEquals(cmd.revert(after), doc), name + ': undo(do(doc)) deepEqual doc').toBe(true);
+  expect(stageEquals(cmd.apply(cmd.revert(after)), after), name + ': do(undo(do(doc))) deepEqual do(doc)').toBe(true);
+  expect(stageEquals(doc, orig), name + ': in-place 금지').toBe(true);
 }
 
+const clip: Clipboard = { width: 3, height: 2, cells: new Uint8Array([3, 3, 3, 5, 3, 3]) };
+
 describe('커맨드 왕복', () => {
-  // paintCells
-  it('paintCells', () => {
-    const doc = clone(SEED);
-    const cmd = paintCells(doc.map, [{ x: 5, y: 5, cell: Cell.Water }], '테스트 칠하기');
-    runRoundtrip('paintCells', doc, cmd);
-  });
-
-  // resizeMap (확대 + 축소)
-  it('resizeMap 확대 (40x18, anchor w)', () => {
-    const doc = clone(SEED);
-    const cmd = resizeMap(doc, 40, 18, 'w');
-    runRoundtrip('resizeMap 확대', doc, cmd);
-  });
-
-  it('resizeMap 축소 (24x14, anchor c)', () => {
-    const doc = clone(SEED);
-    const cmd = resizeMap(doc, 24, 14, 'c');
-    runRoundtrip('resizeMap 축소', doc, cmd);
-  });
-
-  // addNode + moveNode + renameNode + setNodeRole
-  it('addNode', () => {
-    const doc = clone(SEED);
-    const node: PathNode = { id: 'N99_test', x: 10, y: 10, role: 'waypoint' };
-    const cmd = addNode(node);
-    runRoundtrip('addNode', doc, cmd);
-  });
-
-  it('moveNode', () => {
-    const doc = clone(SEED);
-    const cmd = moveNode('N01', { x: 20, y: 20 });
-    runRoundtrip('moveNode', doc, cmd);
-  });
-
-  it('renameNode', () => {
-    const doc = clone(SEED);
-    const cmd = renameNode(doc, 'N01', 'N01_renamed');
-    runRoundtrip('renameNode', doc, cmd);
-  });
-
-  it('setNodeRole', () => {
-    const doc = clone(SEED);
-    const cmd = setNodeRole(doc, 'N01', 'branch');
-    runRoundtrip('setNodeRole', doc, cmd);
-  });
-
-  // deleteNode (트리거 노드 N06 + 일반 노드 N01)
-  it('deleteNode 트리거 노드 N06', () => {
-    const doc = clone(SEED);
-    const cmd = deleteNode(doc, 'N06');
-    runRoundtrip('deleteNode N06', doc, cmd);
-  });
-
-  it('deleteNode 일반 노드 N01', () => {
-    const doc = clone(SEED);
-    const cmd = deleteNode(doc, 'N01');
-    runRoundtrip('deleteNode N01', doc, cmd);
-  });
-
-  // addEdge + deleteEdge + setEdgeProps
-  it('addEdge', () => {
-    const doc = clone(SEED);
-    const edge: PathEdge = { from: 'N01', to: 'N02', allowed: ['Escortee', 'Enemy', 'Ally'], bidirectional: true, shortcut: false };
-    const cmd = addEdge(edge);
-    runRoundtrip('addEdge', doc, cmd);
-  });
-
-  it('deleteEdge', () => {
-    const doc = clone(SEED);
-    const cmd = deleteEdge(0);
-    runRoundtrip('deleteEdge', doc, cmd);
-  });
-
-  it('setEdgeProps', () => {
-    const doc = clone(SEED);
-    const cmd = setEdgeProps(0, { shortcut: true });
-    runRoundtrip('setEdgeProps', doc, cmd);
-  });
-
-  // setField
-  it('setField escortee.speed', () => {
-    const doc = clone(SEED);
-    const cmd = setField('escortee.speed', 0.99);
-    runRoundtrip('setField escortee.speed', doc, cmd);
-  });
-
-  it('setField presentation.masterVolume', () => {
-    const doc = clone(SEED);
-    const cmd = setField('presentation.masterVolume', 0.5);
-    runRoundtrip('setField presentation.masterVolume', doc, cmd);
-  });
-
-  // setTable
-  it('setTable spawn.table', () => {
-    const doc = clone(SEED);
-    const cmd = setTable('spawn.table', [{ enemy: 'Robot_Walker', weight: 100 }]);
-    runRoundtrip('setTable spawn.table', doc, cmd);
-  });
-
-  it('setTable economy.difficulties', () => {
-    const doc = clone(SEED);
-    const cmd = setTable('economy.difficulties', [
-      { difficulty: 'Easy', displayName: '쉬움', killReward: 5, resourcePerSecond: 3 },
-      { difficulty: 'Normal', displayName: '보통', killReward: 5, resourcePerSecond: 0 },
-      { difficulty: 'Hard', displayName: '어려움', killReward: 4, resourcePerSecond: 0 },
-    ]);
-    runRoundtrip('setTable economy.difficulties', doc, cmd);
-  });
+  it('paintCells', () => { const d = clone(SEED); runRoundtrip('paintCells', d, paintCells(d.map, [{ x: 5, y: 5, cell: Cell.Water }], 't')); });
+  it('paintCells 같은 칸 두 번', () => { const d = clone(SEED); runRoundtrip('paintCells', d, paintCells(d.map, [{ x: 5, y: 5, cell: Cell.Water }, { x: 5, y: 5, cell: Cell.Water }], 't')); });
+  it('pasteCells', () => { const d = clone(SEED); runRoundtrip('pasteCells', d, pasteCells(d.map, { x: 10, y: 10 }, clip)); });
+  it('pasteCells 맵 밖 잘림', () => { const d = clone(SEED); runRoundtrip('pasteCells', d, pasteCells(d.map, { x: 31, y: 17 }, clip)); });
+  it('resizeMap 확대', () => { const d = clone(SEED); runRoundtrip('resizeMap', d, resizeMap(d, 40, 18, 'w')); });
+  it('resizeMap 축소', () => { const d = clone(SEED); runRoundtrip('resizeMap', d, resizeMap(d, 24, 14, 'c')); });
+  it('resizeMap 노드 맵 밖', () => { const d = clone(SEED); runRoundtrip('resizeMap', d, resizeMap(d, 20, 12, 'sw')); });
+  it('addNode', () => { const d = clone(SEED); runRoundtrip('addNode', d, addNode({ id: 'N99_test', x: 10, y: 10, role: 'waypoint' })); });
+  it('moveNode', () => { const d = clone(SEED); runRoundtrip('moveNode', d, moveNode('N01', { x: 20, y: 20 })); });
+  it('deleteNode N06', () => { const d = clone(SEED); runRoundtrip('deleteNode', d, deleteNode(d, 'N06')); });
+  it('deleteNode N01', () => { const d = clone(SEED); runRoundtrip('deleteNode', d, deleteNode(d, 'N01')); });
+  it('deleteNode N08 (4 edges)', () => { const d = clone(SEED); runRoundtrip('deleteNode', d, deleteNode(d, 'N08')); });
+  it('renameNode', () => { const d = clone(SEED); runRoundtrip('renameNode', d, renameNode(d, 'N01', 'N01x')); });
+  it('renameNode trigger ref', () => { const d = clone(SEED); const cmd = renameNode(d, 'N06', 'N06x'); const a = cmd.apply(d); expect(a.burst.triggerNodeIds).toContain('N06x'); runRoundtrip('renameNode', d, cmd); });
+  it('setNodeRole branch', () => { const d = clone(SEED); runRoundtrip('setNodeRole', d, setNodeRole(d, 'N01', 'branch')); });
+  it('setNodeRole start 강등', () => { const d = clone(SEED); runRoundtrip('setNodeRole', d, setNodeRole(d, 'N05', 'start')); });
+  it('addEdge', () => { const d = clone(SEED); runRoundtrip('addEdge', d, addEdge({ from: 'N01', to: 'N02', allowed: ['Escortee', 'Enemy', 'Ally'], bidirectional: true, shortcut: false })); });
+  it('addEdge 중복 모양', () => { const d = clone(SEED); runRoundtrip('addEdge', d, addEdge({ from: 'N05', to: 'N08', allowed: ['Escortee'], bidirectional: true, shortcut: true })); });
+  it('deleteEdge 0', () => { const d = clone(SEED); runRoundtrip('deleteEdge', d, deleteEdge(0)); });
+  it('deleteEdge 마지막', () => { const d = clone(SEED); runRoundtrip('deleteEdge', d, deleteEdge(d.path.edges.length - 1)); });
+  it('setEdgeProps shortcut', () => { const d = clone(SEED); runRoundtrip('setEdgeProps', d, setEdgeProps(0, { shortcut: true })); });
+  it('setEdgeProps bidirectional', () => { const d = clone(SEED); runRoundtrip('setEdgeProps', d, setEdgeProps(0, { bidirectional: false })); });
+  it('setField speed', () => { const d = clone(SEED); runRoundtrip('setField', d, setField('escortee.speed', 0.99)); });
+  it('setField int', () => { const d = clone(SEED); runRoundtrip('setField', d, setField('spawn.volleyCount', 6)); });
+  it('setField boolean', () => { const d = clone(SEED); runRoundtrip('setField', d, setField('mother.followsPath', false)); });
+  it('setTable spawn.table', () => { const d = clone(SEED); runRoundtrip('setTable', d, setTable('spawn.table', [{ enemy: 'Robot_Walker', weight: 100 }])); });
+  it('setTable difficulties', () => { const d = clone(SEED); runRoundtrip('setTable', d, setTable('economy.difficulties', [{ difficulty: 'Easy', displayName: '쉬움', killReward: 5, resourcePerSecond: 3 }, { difficulty: 'Normal', displayName: '보통', killReward: 5, resourcePerSecond: 0 }, { difficulty: 'Hard', displayName: '어려움', killReward: 4, resourcePerSecond: 0 }])); });
 });
-
-
-
 
