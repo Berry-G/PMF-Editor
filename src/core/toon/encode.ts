@@ -1,163 +1,59 @@
 /**
- * 목적: StageDocument → TOON 정규 출력.
- * 왜 이 구조인가: 정규 출력(바이트 동일)이어야 골든 왕복 테스트 성립.
- *   섹션 순서·키 순서·숫자 형식 고정 — SDD-02 §6-1 [D-02-08].
+ * 목적: StageDocument → TOON 정규 출력. 바이트 동일이 목표.
+ * 왜 이 구조인가: 정규 출력이어야 골든 왕복 테스트 성립.
+ *   주석은 씨앗과 같은 위치에 같은 문구 (SDD-09 §2-1).
  * 바꾸면 안 되는 것: 섹션·키 순서, formatNumber, rows y 뒤집기.
+ *   주석을 바꾸면 씨앗도 같이 바꾼다.
  * 근거: SDD-02 §6-1 [D-02-07/08], SDD-09 §2 [D-09-02]
  */
 import { CELL_TO_CHAR, Cell as C } from '../model/cell.js';
-
 import { SCHEMA } from '../schema.js';
 import type { Issue } from '../validate/index.js';
-import type {
-  StageDocument, MapData, PathData, SpawnData, BurstData, EconomyData,
-  EscorteeData, MotherData, PresentationData, ToggleData,
-} from '../model/stage.js';
+import type { StageDocument, MapData, PathData, SpawnData, BurstData, EconomyData, EscorteeData, MotherData, PresentationData, ToggleData } from '../model/stage.js';
 
-const HEADER_COMMENT = `# Prowl's Moving Factory — 스테이지 데이터 (${SCHEMA})`;
-const GENERATED_COMMENT = (v: string) => `# PMF Editor ${v} 가 만들었다.`;
-const SECT_COMMENTS: Record<string, string> = {
-  map: '# 맵 — rows 첫 행이 y=height-1 (화면 위)',
-  path: '# 경로 — nodes(id,x,y,role)  edges(from,to,allowed,bidirectional,shortcut)',
-  spawn: '# 스폰 — 묶음·간격·휴지·예고 + 표 + 체력 곡선',
-  burst: '# 버스트 — 트리거 노드 발동. 총량 보존 있음',
-  economy: '# 경제 — 시작 자원·지름길 비용·난이도 3종',
-  escortee: '# 보호대상 — 속도·최대 체력',
-  mother: '# 모체 — 속도·지연·경로 추종 여부',
-  presentation: '# 연출',
-  toggles: '# 토글',
-};
+// 왜: 아래 모든 주석 문자열은 씨앗 파일(Stage_Greybox.toon)과 정확히 같아야 한다.
+//   바꾸면 docs/examples/Stage_Greybox.toon 도 같이 갱신한다.
+const H1 = "# Prowl's Moving Factory — 스테이지 데이터 (pmf.stage/1)";
+const H2 = '# 이 파일은 PMF Editor 가 만들고 읽는다. 손으로 고쳐도 되지만 저장은 툴로 하는 편이 안전하다.';
+const H3 = '# 출처: 게임 프로젝트 2026-09-02 상태 — GreyboxMapData.cs(맵·경로) + Stage_Greybox.asset(수치)';
+const H4 = '#       씨앗값(GreyboxFactory)이 아니라 .asset 실측값이다. 씨앗값은 튜닝 전 숫자라 믿으면 안 된다.';
+const M1 = '# --- 맵 --------------------------------------------------------------';
+const M2 = '# 문자: _ 빈칸(타일 없음 = 맵 밖, 런타임 Blocked)  . 땅  R 도로  B 배치가능  V 마을  W 벽  ~ 물';
+const M3 = '# 맨 위 행이 y = height-1 (화면에 보이는 그대로). 열 인덱스가 x.';
+const M4 = "# 벽을 '#' 로 쓰지 않는 이유: TOON 은 '#' 로 시작하는 줄을 주석으로 지운다.";
+const P1 = '# --- 경로 --------------------------------------------------------------';
+const P2 = '# id 는 게임의 GameObject 이름이 된다. 버스트 트리거가 이 이름으로 정확히 매칭하므로 툴은 재번호하지 않는다.';
+const P3 = '# role: start(보호대상·모체 출발) / exit(탈출) / branch(도로 밖 분기, 아군 행군용) / waypoint(그 외)';
+const P4 = '# 코너 노드는 도로가 꺾이는 셀에 정확히 놓여야 한다 — 한 칸 어긋나면 직선 구간이 코너를 대각선으로 가로지른다.';
+const E1 = "# allowed: All | Escortee | Enemy | Ally, 여러 개면 '+' 로 잇는다. 양방향 엣지는 한 번만 적는다 (게임이 반대 방향을 만든다).";
+const E2 = '# 지름길은 반드시 Escortee 만 — 적이 지나가면 지름길의 존재 이유가 사라진다 (ADR-0004).';
+const S1 = '# --- 스폰 --------------------------------------------------------------';
+const S2 = "# 리듬 = 묶음(volley) + 휴지(rest). 웨이브가 아니라 '호흡' 이다 (회의 결정 2).";
+const S3 = '# 사이클 = (volleyCount-1)*volleySpacing + restSeconds = 9.4초에 4마리 → 0.426 마리/초';
+const T1 = '# enemy 는 EnemyDefinition 에셋 이름. guid 는 넣지 않는다 — 기획자가 다룰 수 없고 에셋을 옮기면 깨진다.';
+const H5 = '# 진행도(0~1)별 적 체력 배율. Unity AnimationCurve 를 (t, 배율) 표로 편 것. 난이도와 곱하지 않는다.';
+const B1 = '# 버스트 = 모체가 추적을 멈추고 생산에 몰빵. 총량 보존 — 밀도만 바뀐다 (GDD §7).';
+const N1 = '# --- 경제 --------------------------------------------------------------';
+const N2 = '# 난이도는 경제로만 조절한다. 적 체력·데미지에 배율을 걸지 않는다 (ADR-0018).';
+const O1 = '# 모체는 보호대상과 같은 start 노드에서 출발한다 (추격자 그림). 속도는 반드시 보호대상보다 느려야 한다.';
+const G1 = '# GDD §13 미결정 사항 실험 토글 (D-03, D-04)';
 
-function needsQuotes(s: string): boolean {
-  if (s === '' || s === 'true' || s === 'false' || s === 'null') return true;
-  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) return true;
-  if (/^[\s]|[\s]$/.test(s)) return true;
-  if (/[:"\\[\]{}]/.test(s) || s.includes(',') || /^[#-]/.test(s)) return true;
-  for (let i = 0; i < s.length; i++) { const cc = s.charCodeAt(i); if (cc < 0x20 || (cc >= 0x7f && cc < 0xa0)) return true; }
-  return false;
-}
-
-function str(s: string): string {
-  if (!needsQuotes(s)) return s;
-  let out = '"';
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]!;
-    switch (c) {
-      case '\\': out += '\\\\'; break; case '"': out += '\\"'; break;
-      case '\n': out += '\\n'; break; case '\r': out += '\\r'; break; case '\t': out += '\\t'; break;
-      default: { const cc = s.charCodeAt(i); if (cc < 0x20 || (cc >= 0x7f && cc < 0xa0)) out += `\\u${cc.toString(16).padStart(4, '0')}`; else out += c; }
-    }
-  }
-  return out + '"';
-}
-
-/* -------------------------------------------------------------- */
-/*  섹션 인코더                                                    */
-/* -------------------------------------------------------------- */
-
-function section(name: string, lines: string[]): void {
-  lines.push(SECT_COMMENTS[name] ?? '');
-}
-
-function encodeMap(map: MapData, lines: string[]): void {
-  section('map', lines); lines.push('map:');
-  lines.push(`  width: ${map.width}`); lines.push(`  height: ${map.height}`);
-  lines.push(`  origin[2]: ${map.origin[0]},${map.origin[1]}`);
-  const rows: string[] = [];
-  for (let r = 0; r < map.height; r++) {
-    const y = map.height - 1 - r; let rs = '';
-    for (let x = 0; x < map.width; x++) rs += CELL_TO_CHAR[(map.cells[y * map.width + x]!) as C] ?? '?';
-    rows.push(rs);
-  }
-  lines.push(`  rows[${map.height}]{row}:`);
-  for (const r of rows) lines.push(`    ${r}`);
-}
-
-function encodePath(path: PathData, lines: string[]): void {
-  section('path', lines); lines.push('path:');
-  lines.push(`  nodes[${path.nodes.length}]{id,x,y,role}:`);
-  for (const n of path.nodes) lines.push(`    ${n.id},${n.x},${n.y},${n.role}`);
-  lines.push(`  edges[${path.edges.length}]{from,to,allowed,bidirectional,shortcut}:`);
-  for (const e of path.edges) {
-    const allowed = e.allowed.length === 3 ? 'All' : [...new Set(e.allowed)].join('+');
-    lines.push(`    ${e.from},${e.to},${allowed},${e.bidirectional},${e.shortcut}`);
-  }
-}
-
-function encodeSpawn(spawn: SpawnData, lines: string[]): void {
-  section('spawn', lines); lines.push('spawn:');
-  lines.push(`  volleyCount: ${spawn.volleyCount}`); lines.push(`  volleySpacing: ${spawn.volleySpacing}`);
-  lines.push(`  restSeconds: ${spawn.restSeconds}`); lines.push(`  telegraphSeconds: ${spawn.telegraphSeconds}`);
-  lines.push(`  table[${spawn.table.length}]{enemy,weight}:`);
-  for (const e of spawn.table) lines.push(`    ${str(e.enemy)},${e.weight}`);
-  lines.push(`  healthByProgress[${spawn.healthByProgress.length}]{t,mul}:`);
-  for (const k of spawn.healthByProgress) lines.push(`    ${k.t},${k.mul}`);
-}
-
-function encodeBurst(burst: BurstData, lines: string[]): void {
-  section('burst', lines); lines.push('burst:');
-  lines.push(`  triggerNodeIds[${burst.triggerNodeIds.length}]: ${burst.triggerNodeIds.map(id => str(id)).join(',')}`);
-  lines.push(`  duration: ${burst.duration}`); lines.push(`  volleyCount: ${burst.volleyCount}`);
-  lines.push(`  restSeconds: ${burst.restSeconds}`);
-  lines.push(`  recoverySpeedMultiplier: ${burst.recoverySpeedMultiplier}`);
-  lines.push(`  recoverySeconds: ${burst.recoverySeconds}`);
-}
-
-function encodeEconomy(economy: EconomyData, lines: string[]): void {
-  section('economy', lines); lines.push('economy:');
-  lines.push(`  startingResource: ${economy.startingResource}`); lines.push(`  shortcutCost: ${economy.shortcutCost}`);
-  lines.push(`  difficulties[3]{difficulty,displayName,killReward,resourcePerSecond}:`);
-  for (const d of economy.difficulties) lines.push(`    ${d.difficulty},${str(d.displayName)},${d.killReward},${d.resourcePerSecond}`);
-}
-
-function encodeEscortee(escortee: EscorteeData, lines: string[]): void {
-  section('escortee', lines); lines.push('escortee:');
-  lines.push(`  speed: ${escortee.speed}`); lines.push(`  maxHealth: ${escortee.maxHealth}`);
-}
-function encodeMother(mother: MotherData, lines: string[]): void {
-  section('mother', lines); lines.push('mother:');
-  lines.push(`  speed: ${mother.speed}`); lines.push(`  spawnDelay: ${mother.spawnDelay}`);
-  lines.push(`  followsPath: ${mother.followsPath}`);
-}
-function encodePresentation(presentation: PresentationData, lines: string[]): void {
-  section('presentation', lines); lines.push('presentation:');
-  lines.push(`  uiSlowMotionScale: ${presentation.uiSlowMotionScale}`);
-  lines.push(`  shotLineSeconds: ${presentation.shotLineSeconds}`);
-  lines.push(`  magicMissileSpeed: ${presentation.magicMissileSpeed}`);
-  lines.push(`  hitFlashSeconds: ${presentation.hitFlashSeconds}`);
-  lines.push(`  debrisCount: ${presentation.debrisCount}`);
-  lines.push(`  debrisSeconds: ${presentation.debrisSeconds}`);
-  lines.push(`  healthBarHideWhenFull: ${presentation.healthBarHideWhenFull}`);
-  lines.push(`  masterVolume: ${presentation.masterVolume}`);
-}
-function encodeToggles(toggles: ToggleData, lines: string[]): void {
-  section('toggles', lines); lines.push('toggles:');
-  lines.push(`  alliesCanDieWhileMarching: ${toggles.alliesCanDieWhileMarching}`);
-  lines.push(`  enemiesTargetAllies: ${toggles.enemiesTargetAllies}`);
-}
-
-/* -------------------------------------------------------------- */
-/*  공개 API                                                      */
-/* -------------------------------------------------------------- */
+function p(lines: string[], a: string[]): void { for (const l of a) lines.push(l); }
+function encodeMap(map: MapData, lines: string[]): void { p(lines, [M1, M2, M3, M4]); lines.push('map:'); lines.push('  width: ' + map.width); lines.push('  height: ' + map.height); lines.push('  origin[2]: ' + map.origin[0] + ',' + map.origin[1]); const rows: string[] = []; for (let r = 0; r < map.height; r++) { const y = map.height - 1 - r; let rs = ''; for (let x = 0; x < map.width; x++) rs += CELL_TO_CHAR[(map.cells[y * map.width + x]!) as C] ?? '?'; rows.push(rs); } lines.push('  rows[' + map.height + ']{row}:'); for (const r of rows) lines.push('    ' + r); }
+function encodePath(path: PathData, lines: string[]): void { p(lines, [P1, P2, P3, P4]); lines.push('path:'); lines.push('  nodes[' + path.nodes.length + ']{id,x,y,role}:'); for (const n of path.nodes) lines.push('    ' + n.id + ',' + n.x + ',' + n.y + ',' + n.role); p(lines, [E1, E2]); lines.push('  edges[' + path.edges.length + ']{from,to,allowed,bidirectional,shortcut}:'); for (const e of path.edges) { const allowed = e.allowed.length === 3 ? 'All' : [...new Set(e.allowed)].join('+'); lines.push('    ' + e.from + ',' + e.to + ',' + allowed + ',' + e.bidirectional + ',' + e.shortcut); } }
+function encodeSpawn(spawn: SpawnData, lines: string[]): void { p(lines, [S1, S2, S3]); lines.push('spawn:'); lines.push('  volleyCount: ' + spawn.volleyCount); lines.push('  volleySpacing: ' + spawn.volleySpacing); lines.push('  restSeconds: ' + spawn.restSeconds); lines.push('  telegraphSeconds: ' + spawn.telegraphSeconds); p(lines, [T1]); lines.push('  table[' + spawn.table.length + ']{enemy,weight}:'); for (const e of spawn.table) lines.push('    ' + e.enemy + ',' + e.weight); p(lines, [H5]); lines.push('  healthByProgress[' + spawn.healthByProgress.length + ']{t,mul}:'); for (const k of spawn.healthByProgress) lines.push('    ' + k.t + ',' + k.mul); }
+function encodeBurst(burst: BurstData, lines: string[]): void { p(lines, [B1]); lines.push('burst:'); lines.push('  triggerNodeIds[' + burst.triggerNodeIds.length + ']: ' + burst.triggerNodeIds.join(',')); lines.push('  duration: ' + burst.duration); lines.push('  volleyCount: ' + burst.volleyCount); lines.push('  restSeconds: ' + burst.restSeconds); lines.push('  recoverySpeedMultiplier: ' + burst.recoverySpeedMultiplier); lines.push('  recoverySeconds: ' + burst.recoverySeconds); }
+function encodeEconomy(economy: EconomyData, lines: string[]): void { p(lines, [N1, N2]); lines.push('economy:'); lines.push('  startingResource: ' + economy.startingResource); lines.push('  shortcutCost: ' + economy.shortcutCost); lines.push('  difficulties[3]{difficulty,displayName,killReward,resourcePerSecond}:'); for (const d of economy.difficulties) lines.push('    ' + d.difficulty + ',' + d.displayName + ',' + d.killReward + ',' + d.resourcePerSecond); }
+function encodeEscortee(escortee: EscorteeData, lines: string[]): void { lines.push('escortee:'); lines.push('  speed: ' + escortee.speed); lines.push('  maxHealth: ' + escortee.maxHealth); }
+function encodeMother(mother: MotherData, lines: string[]): void { p(lines, [O1]); lines.push('mother:'); lines.push('  speed: ' + mother.speed); lines.push('  spawnDelay: ' + mother.spawnDelay); lines.push('  followsPath: ' + mother.followsPath); }
+function encodePresentation(presentation: PresentationData, lines: string[]): void { lines.push('presentation:'); lines.push('  uiSlowMotionScale: ' + presentation.uiSlowMotionScale); lines.push('  shotLineSeconds: ' + presentation.shotLineSeconds); lines.push('  magicMissileSpeed: ' + presentation.magicMissileSpeed); lines.push('  hitFlashSeconds: ' + presentation.hitFlashSeconds); lines.push('  debrisCount: ' + presentation.debrisCount); lines.push('  debrisSeconds: ' + presentation.debrisSeconds); lines.push('  healthBarHideWhenFull: ' + presentation.healthBarHideWhenFull); lines.push('  masterVolume: ' + presentation.masterVolume); }
+function encodeToggles(toggles: ToggleData, lines: string[]): void { p(lines, [G1]); lines.push('toggles:'); lines.push('  alliesCanDieWhileMarching: ' + toggles.alliesCanDieWhileMarching); lines.push('  enemiesTargetAllies: ' + toggles.enemiesTargetAllies); }
 
 export interface EncodeOptions { toolVersion: string; issues?: ReadonlyArray<Issue> }
-
 export function encode(doc: StageDocument, opts: EncodeOptions): string {
-  const out: string[] = [];
-  out.push(HEADER_COMMENT); out.push(GENERATED_COMMENT(opts.toolVersion));
-  if (opts.issues !== undefined && opts.issues.some(i => i.severity === 'error')) {
-    const n = opts.issues.filter(i => i.severity === 'error').length;
-    out.push(`# ⚠ 검증 실패 ${n}건 — 임포트되지 않는다.`);
-  }
-  out.push(`schema: ${SCHEMA}`); out.push(`name: ${str(doc.name)}`); out.push('');
-  encodeMap(doc.map, out); out.push('');
-  encodePath(doc.path, out); out.push('');
-  encodeSpawn(doc.spawn, out); out.push('');
-  encodeBurst(doc.burst, out); out.push('');
-  encodeEconomy(doc.economy, out); out.push('');
-  encodeEscortee(doc.escortee, out); out.push('');
-  encodeMother(doc.mother, out); out.push('');
-  encodePresentation(doc.presentation, out); out.push('');
-  encodeToggles(doc.toggles, out);
+  const out: string[] = []; out.push(H1); out.push(H2); out.push(H3); out.push(H4);
+  if (opts.issues !== undefined && opts.issues.some(i => i.severity === 'error')) { const n = opts.issues.filter(i => i.severity === 'error').length; out.push('# ⚠ 검증 실패 ' + n + '건 — 임포트되지 않는다. 툴의 검증 탭을 보라.'); }
+  out.push('schema: ' + SCHEMA); out.push('name: ' + doc.name); out.push('');
+  encodeMap(doc.map, out); out.push(''); encodePath(doc.path, out); out.push(''); encodeSpawn(doc.spawn, out); out.push(''); encodeBurst(doc.burst, out); out.push(''); encodeEconomy(doc.economy, out); out.push(''); encodeEscortee(doc.escortee, out); out.push(''); encodeMother(doc.mother, out); out.push(''); encodePresentation(doc.presentation, out); out.push(''); encodeToggles(doc.toggles, out);
   return out.join('\n') + '\n';
 }
