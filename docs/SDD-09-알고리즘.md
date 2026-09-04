@@ -363,7 +363,7 @@ graphClosed = buildGraph(path, {openShortcuts:false}); graphOpen = buildGraph(pa
 start = index of role 'start'; exit = index of first role 'exit'
 escortee.pos = node[start]; escortee.route = shortestPath(graphClosed, start, exit, 'Escortee'); seg=0; t=0; lastNode=start
 mother.pos = node[start]; state='idle'; idleLeft = mother.spawnDelay; currentNode=start
-rhythm = { phase:'rest', restLeft: spawn.restSeconds, … }      // 가정 A2: Idle 이 끝난 뒤 첫 휴지를 채우고 첫 묶음
+rhythm = { phase:'rest', restLeft: spawn.restSeconds, … }      // A2 ✅확인: Idle 이 끝나면 첫 휴지를 채우고 첫 묶음 (MotherSpawner.cs:231-240)
 rnd = mulberry32(seed); time = 0; samples=[]; spawnEvents=[]; contacts=[]; bursts=[]
 ```
 
@@ -381,7 +381,7 @@ while !escortee.arrived && time < maxSeconds:
     chasing: speed = mother.speed * (recoveryLeft > 0 ? burst.recoverySpeedMultiplier : 1); recoveryLeft = max(0, recoveryLeft-dt)
              moveAlong(mother, speed*dt); if mother.followsPath===false → 직진: pos += normalize(escortee.pos - pos) * speed*dt
     burst:   burstLeft -= dt; if burstLeft <= 0 → exitBurst()
-  // 4. 스폰 리듬 (idle 이 아닐 때만 — 가정 A1)
+  // 4. 스폰 리듬 (idle 이 아닐 때만 — A1 ✅확인: Idle 은 MoveAndSpawn 을 부르지 않는다, MotherSpawner.cs:231-240)
   if mother.state !== 'idle': tickRhythm(dt)
   // 5. 적 이동·접촉
   for e of enemies: moveAlong(e, e.speed*dt); if dist(e.pos, escortee.pos) <= 0.5 → contacts.push({t:time, enemy:e.name}); remove
@@ -398,7 +398,12 @@ if mother.state==='chasing': recalcMother()
 for e of enemies: recalcEnemy(e)
 ```
 
-`enterBurst(node)`: `state='burst'; burstLeft=burst.duration; burstSpawned=0; rhythm = {phase:'rest', restLeft: burst.restSeconds}` — 버스트 리듬은 `burst.volleyCount / burst.restSeconds`, `volleySpacing` 은 평시 값 그대로 (게임에 버스트용 spacing 필드가 없다).
+`enterBurst(node)`: `state='burst'; burstLeft=burst.duration; burstSpawned=0;`
+**`rhythm = {phase:'volley', volleyLeft: burst.volleyCount, spacingLeft: 0}`** — 휴지 없이 **즉시 묶음**을 시작한다.
+출처: `MotherSpawner.EnterBurst` (`:184-186`) — `_phase = SpawnPhase.Volley; _volleyRemaining = BurstVolleyCount; _spacingTimer = 0f;`.
+버스트 리듬은 `burst.volleyCount / burst.restSeconds`, `volleySpacing` 은 평시 값 그대로 (게임에 버스트용 spacing 필드가 없다).
+
+> 🔴 **정정 2026-09-04.** 초판은 `phase:'rest'` 로 적었다. 게임 코드를 열어 보니 틀렸다. 진행 중이던 예고·묶음을 접고 곧바로 생산에 들어가는 것이 "추적 에너지를 생산으로 전환" 이라는 설계 의도와도 맞는다.
 
 `exitBurst()` (게임 `ExitBurst` 그대로):
 ```
@@ -416,9 +421,16 @@ params = state==='burst' ? {n: burst.volleyCount, rest: burst.restSeconds} : {n:
 if phase==='rest': restLeft -= dt; if restLeft <= 0 → phase='volley'; volleyLeft=params.n; spacingLeft=0
 if phase==='volley':
    spacingLeft -= dt
-   while spacingLeft <= 0 && volleyLeft > 0: spawnOne(); volleyLeft--; spacingLeft += spawn.volleySpacing
-   if volleyLeft === 0 → phase='rest'; restLeft = params.rest + spacingLeft   // 남은 음수 시간 이월
+   while spacingLeft <= 0 && volleyLeft > 0:
+      spawnOne(); volleyLeft--
+      if volleyLeft > 0: spacingLeft += spawn.volleySpacing     // 왜: 마지막 한 마리 뒤에는 더하지 않는다
+   if volleyLeft === 0 → phase='rest'; restLeft = params.rest    // 이월하지 않는다
 ```
+출처: `MotherSpawner.UpdateSpawnRhythm` (`:352-364`) — `if (_volleyRemaining > 0) _spacingTimer += SpawnVolleySpacing;` 와 `_restTimer = restSeconds;`.
+
+> 🔴 **정정 2026-09-04.** 초판은 마지막 한 마리 뒤에도 간격을 더하고 남은 시간을 휴지에 이월했다. 게임은 둘 다 하지 않는다.
+> 이 차이로 평시 사이클이 `n*spacing + rest`(9.8초)가 되어 게임의 `(n-1)*spacing + rest`(9.4초)보다 길어진다.
+
 한 스텝에 여러 마리가 나올 수 있다 (`spacing 0.4 < dt` 는 아니지만 일반화). `spawnOne`: `name = pick(table, rnd)`; `enemies.push({name, speed: catalog[name].moveSpeed, pos: mother.pos, currentNode: mother.currentNode})`; `recalcEnemy`; `spawnEvents.push`; `if state==='burst' burstSpawned++`. 카탈로그에 없는 이름이면 `speed = 1` + warnings (V-S01 은 경고이므로 시뮬은 돈다).
 
 ### 7-6. 경로 추종 `moveAlong(actor, d)`
@@ -444,7 +456,13 @@ actor.pos = lerp(a, b, t)   // seg 가 끝이면 pos = 마지막 노드
 - 씨앗 + `{seed:1, dt:1/30, shortcutOpenAt:null}` → `stageSeconds ∈ [115.4, 122.6]`, `totalSpawned ∈ [54, 58]`, `incomeCeiling.Normal ∈ [392, 412]`.
 - 같은 입력 두 번 → `SimResult` deepEqual (결정론).
 - `shortcutOpenAt = 30` → `stageSeconds` 가 감소한다.
-- 회귀가 어긋나면 **가정 A1(Idle 중 스폰 없음)·A2(첫 휴지)·§7-6 재계산 규칙** 을 게임 코드로 확정하고 이 문서를 고친다. 기대값을 슬쩍 넓히지 마라.
+- 회귀가 어긋나면 **§7-6 재계산 규칙·`nearestNode` 필터** 를 게임 코드로 확정하고 이 문서를 고친다. **기대값을 슬쩍 넓히지 마라.**
+  허용 범위를 바꾸는 것은 규격 변경이므로 이 문서를 고치고 근거(게임 코드 라인)를 남긴 커밋에서만 한다.
+
+> 🔴 **미해결 (2026-09-04).** A1·A2·enterBurst·묶음 종료를 게임 코드로 전부 맞춘 뒤에도 실측은
+> **판 길이 119.07(정확) · 총 스폰 52 · 수입 384** 로, 기대(56 / 402)에 4기 모자란다.
+> 남은 후보: `PathFollower` 의 중간 재계산 규칙(§7-6), `PathGraph.FindNearestNode` 의 필터(§5-3),
+> 버스트 트리거 발화 시각. **이 항목을 닫기 전에는 시뮬 회귀 테스트가 빨간불인 것이 정상이다.**
 
 ## 8. 커맨드와 히스토리 (`core/commands`) `[D-09-08]`
 
