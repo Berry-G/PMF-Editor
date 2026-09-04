@@ -55,8 +55,8 @@ path:
     N13_exit,30,6,exit
     B01_branch,12,8,branch
     B02_branch,20,10,branch
-# allowed: All | Escortee | Enemy | Ally, 여러 개면 '+' 로 잇는다. 양방향 엣지는 한 번만 적는다 (게임이 반대 방향을 만든다).
-# 지름길은 반드시 Escortee 만 — 적이 지나가면 지름길의 존재 이유가 사라진다 (ADR-0004).
+  # allowed: All | Escortee | Enemy | Ally, 여러 개면 '+' 로 잇는다. 양방향 엣지는 한 번만 적는다 (게임이 반대 방향을 만든다).
+  # 지름길은 반드시 Escortee 만 — 적이 지나가면 지름길의 존재 이유가 사라진다 (ADR-0004).
   edges[18]{from,to,allowed,bidirectional,shortcut}:
     N00_start,N01,All,true,false
     N01,N02,All,true,false
@@ -85,11 +85,11 @@ spawn:
   volleySpacing: 0.4
   restSeconds: 8.2
   telegraphSeconds: 0.6
-# enemy 는 EnemyDefinition 에셋 이름. guid 는 넣지 않는다 — 기획자가 다룰 수 없고 에셋을 옮기면 깨진다.
+  # enemy 는 EnemyDefinition 에셋 이름. guid 는 넣지 않는다 — 기획자가 다룰 수 없고 에셋을 옮기면 깨진다.
   table[2]{enemy,weight}:
     Robot_Walker,70
     Robot_Scout,30
-# 진행도(0~1)별 적 체력 배율. Unity AnimationCurve 를 (t, 배율) 표로 편 것. 난이도와 곱하지 않는다.
+  # 진행도(0~1)별 적 체력 배율. Unity AnimationCurve 를 (t, 배율) 표로 편 것. 난이도와 곱하지 않는다.
   healthByProgress[2]{t,mul}:
     0,1
     1,1
