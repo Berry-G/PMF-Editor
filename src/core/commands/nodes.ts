@@ -1,10 +1,10 @@
 /**
  * 목적: 노드 편집 커맨드들. Undo/Redo 지원.
- * 왜 이 구조인가: 각 커맨드는 apply/revert 쌍으로 Undo/Redo 스택을 구성한다.
- *   deleteNode 는 붙은 엣지·트리거 참조를 기억해 undo 때 복원한다.
- *   renameNode 는 엣지·트리거 참조를 함께 갱신한다 (ADR-E06).
+ * 왜 이 구조인가: deleteNode 의 revert 는 제거된 엣지를 원래 인덱스 순서(오름차순)로 복원한다.
+ *   splice 가 인덱스를 밀지 않도록 내림차순이 아닌, 정렬 후 순서대로 빈 배열에 채워 넣는다.
+ *   renameNode 는 엣지·트리거 참조를 함께 갱신 (ADR-E06).
  *   setNodeRole 에서 start 로 바꾸면 기존 start 는 waypoint 로 내린다.
- * 바꾸면 안 되는 것: deleteNode 가 노드 번호를 당기지 않는 것 (ADR-E06).
+ * 바꾸면 안 되는 것: deleteNode revert 의 엣지 순서 유지.
  * 근거: SDD-09 §8, SDD-08 §7, ADR-E06
  */
 import type { Command } from './command.js';
@@ -17,16 +17,26 @@ export function addNode(node: PathNode): Command {
 export function moveNode(id: string, to: XY): Command { let prev: any; return { label: '노드 이동 ' + id, apply(d: StageDocument) { const ns = d.path.nodes.map(n => { if (n.id === id) { prev = n; return { ...n, x: to.x, y: to.y }; } return n; }); return { ...d, path: { ...d.path, nodes: ns } }; }, revert(d: StageDocument) { if (!prev) return d; return { ...d, path: { ...d.path, nodes: d.path.nodes.map(n => n.id === id ? prev! : n) } }; } }; }
 
 export function deleteNode(doc: StageDocument, id: string): Command {
-  const re = doc.path.edges.map((e, i) => ({ e, i })).filter(({ e }) => e.from === id || e.to === id);
-  const rt = doc.burst.triggerNodeIds.map((t, i) => ({ t, i })).filter(({ t }) => t === id);
-  const ni = doc.path.nodes.findIndex(n => n.id === id);
+  // 왜: 제거된 엣지와 트리거 참조를 기억해 revert 에서 복원한다.
+  const removedEdges = doc.path.edges.map((e, i) => ({ e, i })).filter(({ e }) => e.from === id || e.to === id);
+  const removedTriggers = doc.burst.triggerNodeIds.map((t, i) => ({ t, i })).filter(({ t }) => t === id);
+  const nodeIndex = doc.path.nodes.findIndex(n => n.id === id);
   return { label: '노드 삭제 ' + id, apply(d: StageDocument) {
     return { ...d, path: { nodes: d.path.nodes.filter(n => n.id !== id), edges: d.path.edges.filter(e => e.from !== id && e.to !== id) }, burst: { ...d.burst, triggerNodeIds: d.burst.triggerNodeIds.filter(t => t !== id) } };
   }, revert(d: StageDocument) {
-    const nodes = [...d.path.nodes]; const found = doc.path.nodes.find(n => n.id === id);
-    if (found) { if (ni >= 0 && ni <= nodes.length) nodes.splice(ni, 0, found); else nodes.push(found); }
-    const edges = [...d.path.edges]; for (const { e, i } of [...re].reverse()) edges.splice(i, 0, e);
-    const triggers = [...d.burst.triggerNodeIds]; for (const { t, i } of [...rt].reverse()) triggers.splice(i, 0, t);
+    // 왜: 엣지를 오름차순 인덱스 순서로 복원한다. splice + reverse 는 순서가 달라진다.
+    //   대신 전체 edges 배열을 새로 빌드한다: 0..end 를 순회하며 삽입할 엣지를 원래 인덱스에 끼워 넣는다.
+    const node = doc.path.nodes.find(n => n.id === id);
+    const nodes = node ? (nodeIndex >= 0 && nodeIndex <= d.path.nodes.length ? [...d.path.nodes.slice(0, nodeIndex), node, ...d.path.nodes.slice(nodeIndex)] : [...d.path.nodes, node]) : [...d.path.nodes];
+    const re = [...removedEdges].sort((a, b) => a.i - b.i);
+    const edges: typeof doc.path.edges = [];
+    let ri = 0;
+    for (let i = 0; i <= d.path.edges.length; i++) {
+      while (ri < re.length && re[ri]!.i === edges.length) { edges.push(re[ri]!.e); ri++; }
+      if (i < d.path.edges.length) edges.push(d.path.edges[i]!);
+    }
+    const triggers = [...d.burst.triggerNodeIds];
+    for (const { t, i } of [...removedTriggers].sort((a, b) => a.i - b.i)) triggers.splice(i, 0, t);
     return { ...d, path: { nodes, edges }, burst: { ...d.burst, triggerNodeIds: triggers } };
   } };
 }
