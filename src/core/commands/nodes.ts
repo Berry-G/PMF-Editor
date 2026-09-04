@@ -3,8 +3,10 @@
  * 왜 이 구조인가: deleteNode 의 revert 는 제거된 엣지를 원래 인덱스 순서(오름차순)로 복원한다.
  *   splice 가 인덱스를 밀지 않도록 내림차순이 아닌, 정렬 후 순서대로 빈 배열에 채워 넣는다.
  *   renameNode 는 엣지·트리거 참조를 함께 갱신 (ADR-E06).
- *   setNodeRole 에서 start 로 바꾸면 기존 start 는 waypoint 로 내린다.
- * 바꾸면 안 되는 것: deleteNode revert 의 엣지 순서 유지.
+ *   setNodeRole 은 start 로 바꾸면 기존 start 를 waypoint 로 강등한다.
+ *   revert 는 **apply 전에 바뀐 노드 전부를 캡처**해서 통째로 복원한다 — 조건으로 유추하지 않는다
+ *   (setNodeRole 'start' 강등 시 undo 가 waypoint 로 내려간 채 돌아오지 않던 버그가 원인).
+ * 바꾸면 안 되는 것: deleteNode revert 의 엣지 순서 유지. setNodeRole revert 의 apply 전 스냅샷 복원.
  * 근거: SDD-09 §8, SDD-08 §7, ADR-E06
  */
 import type { Command } from './command.js';
@@ -25,19 +27,19 @@ export function deleteNode(doc: StageDocument, id: string): Command {
     return { ...d, path: { nodes: d.path.nodes.filter(n => n.id !== id), edges: d.path.edges.filter(e => e.from !== id && e.to !== id) }, burst: { ...d.burst, triggerNodeIds: d.burst.triggerNodeIds.filter(t => t !== id) } };
   }, revert(d: StageDocument) {
     // 왜: 엣지를 오름차순 인덱스 순서로 복원한다. splice + reverse 는 순서가 달라진다.
-    //   대신 전체 edges 배열을 새로 빌드한다: 0..end 를 순회하며 삽입할 엣지를 원래 인덱스에 끼워 넣는다.
     const node = doc.path.nodes.find(n => n.id === id);
     const nodes = node ? (nodeIndex >= 0 && nodeIndex <= d.path.nodes.length ? [...d.path.nodes.slice(0, nodeIndex), node, ...d.path.nodes.slice(nodeIndex)] : [...d.path.nodes, node]) : [...d.path.nodes];
     const re = [...removedEdges].sort((a, b) => a.i - b.i);
-    const edges: typeof doc.path.edges = [];
+    
+    const edgesOut: typeof doc.path.edges = [];
     let ri = 0;
     for (let i = 0; i <= d.path.edges.length; i++) {
-      while (ri < re.length && re[ri]!.i === edges.length) { edges.push(re[ri]!.e); ri++; }
-      if (i < d.path.edges.length) edges.push(d.path.edges[i]!);
+      while (ri < re.length && re[ri]!.i === edgesOut.length) { edgesOut.push(re[ri]!.e); ri++; }
+      if (i < d.path.edges.length) edgesOut.push(d.path.edges[i]!);
     }
     const triggers = [...d.burst.triggerNodeIds];
     for (const { t, i } of [...removedTriggers].sort((a, b) => a.i - b.i)) triggers.splice(i, 0, t);
-    return { ...d, path: { nodes, edges }, burst: { ...d.burst, triggerNodeIds: triggers } };
+    return { ...d, path: { nodes, edges: edgesOut }, burst: { ...d.burst, triggerNodeIds: triggers } };
   } };
 }
 
@@ -51,11 +53,17 @@ export function renameNode(doc: StageDocument, id: string, newId: string): Comma
   } };
 }
 
-export function setNodeRole(doc: StageDocument, id: string, role: PathNode['role']): Command {
-  const oldRole = doc.path.nodes.find(n => n.id === id)?.role; const oldStart = doc.path.nodes.find(n => n.role === 'start');
+export function setNodeRole(_doc: StageDocument, id: string, role: PathNode["role"]): Command {
+  // 왜: apply 전 전체 nodes 배열을 캡처해 revert 에서 통째로 복원한다.
+  //   이전에는 revert 가 `oldRole === 'start'` 같은 조건으로 유추해, N05→start 강등의
+  //   undo 에서 기존 start(N00)가 waypoint 로 강등된 채 남는 버그가 있었다.
+  let prevNodes: PathNode[] = [];
   return { label: '노드 역할 ' + id + '→' + role, apply(d: StageDocument) {
+    prevNodes = d.path.nodes.map(n => ({ ...n }));
     return { ...d, path: { ...d.path, nodes: d.path.nodes.map(n => { if (n.id === id) return { ...n, role }; if (role === 'start' && n.role === 'start' && n.id !== id) return { ...n, role: 'waypoint' as const }; return n; }) } };
   }, revert(d: StageDocument) {
-    return { ...d, path: { ...d.path, nodes: d.path.nodes.map(n => { if (n.id === id) return { ...n, role: oldRole ?? 'waypoint' as const }; if (oldRole === 'start' && oldStart && n.id === oldStart.id) return { ...n, role: 'start' as const }; return n; }) } };
+    if (prevNodes.length === 0) return d;
+    return { ...d, path: { ...d.path, nodes: prevNodes.map(n => ({ ...n })) } };
   } };
 }
+
