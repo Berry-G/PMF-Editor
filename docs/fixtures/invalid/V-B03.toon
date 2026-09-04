@@ -1,0 +1,74 @@
+schema: pmf.stage/1
+name: Stage_Greybox
+
+map:
+  width: 8
+  height: 8
+  origin[2]: -4,-4
+  rows[8]{row}:
+    ________
+    _BBBBBB_
+    _BVBBBB_
+    _BBBBBB_
+    _BBRBBB_
+    _BBBBBB_
+    _BBBBBB_
+    ________
+
+path:
+  nodes[2]{id,x,y,role}:
+    N00_start,4,3,start
+    N01_exit,4,4,exit
+  edges[1]{from,to,allowed,bidirectional,shortcut}:
+    N00_start,N01_exit,All,true,false
+
+spawn:
+  volleyCount: 1
+  volleySpacing: 0.5
+  restSeconds: 1
+  telegraphSeconds: 0.5
+  table[2]{enemy,weight}:
+    Robot_Walker,70
+    Robot_Scout,30
+  healthByProgress[2]{t,mul}:
+    0,1
+    1,1
+
+burst:
+  triggerNodeIds[0]:
+  duration: 10
+  volleyCount: 1
+  restSeconds: 2.5
+  recoverySpeedMultiplier: 1.6
+  recoverySeconds: 4
+
+economy:
+  startingResource: 150
+  shortcutCost: 120
+  difficulties[3]{difficulty,displayName,killReward,resourcePerSecond}:
+    Easy,쉬움,4.5,3
+    Normal,보통,4.5,0
+    Hard,어려움,3,0
+
+escortee:
+  speed: 0.42
+  maxHealth: 100
+
+mother:
+  speed: 0.28
+  spawnDelay: 5
+  followsPath: true
+
+presentation:
+  uiSlowMotionScale: 0.1
+  shotLineSeconds: 0.07
+  magicMissileSpeed: 8
+  hitFlashSeconds: 0.08
+  debrisCount: 5
+  debrisSeconds: 0.35
+  healthBarHideWhenFull: true
+  masterVolume: 1
+
+toggles:
+  alliesCanDieWhileMarching: false
+  enemiesTargetAllies: false
