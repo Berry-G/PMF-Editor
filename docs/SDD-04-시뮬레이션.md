@@ -48,9 +48,9 @@
 
 | 상태 | 규칙 | 출처 |
 |---|---|---|
-| Idle | `mother.spawnDelay` 초 동안 `start` 셀에 정지. **스폰 없음 (가정 — M4 착수 시 `MotherSpawner.cs` 로 확인)** | `:107-127` |
+| Idle | `mother.spawnDelay` 초 동안 `start` 셀에 정지. **스폰 없음.** 종료 시 `phase='rest', restLeft=spawn.restSeconds` — ✅ 2026-09-04 게임 코드 확인 | `:231-240` |
 | Chasing | 목표 = Enemy 에이전트 기준 **보호대상에 가장 가까운 노드** (`PathGraph.FindNearestNode(escortee, Enemy)`), 다익스트라로 이동. 재계산은 `EscorteeReachedNode` 때만. 속도 `mother.speed` (× `recoverySpeedMultiplier`, 회복 타이머 동안) | `:257-278`, `:161` |
-| Burst | 보호대상이 `burst.triggerNodeIds` 의 노드를 **처음** 지나면 진입. 이동 정지. `burst.duration` 초 뒤 종료 | `:167`, `:248-253` |
+| Burst | 보호대상이 `burst.triggerNodeIds` 의 노드를 **처음** 지나면 진입. 이동 정지. **진입 즉시 묶음 시작(휴지 없음)**. `burst.duration` 초 뒤 종료 | `:167`, `:184-186`, `:248-253` |
 | `followsPath=false` | 그래프 무시, 보호대상 쪽 직진 (D-06 실험) | `:298-304` |
 
 버스트 종료 시 **총량 보존** (`ExitBurst`, `:197-223`):
