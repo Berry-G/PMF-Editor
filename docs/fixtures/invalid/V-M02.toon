@@ -1,24 +1,24 @@
 schema: pmf.stage/1
-name: Stage_Greybox
+name: Minimal
 
 map:
   width: 8
   height: 8
   origin[2]: -4,-4
   rows[8]{row}:
-    ________
-    _BBXBBB_
+    ______X_
+    _BBBBBB_
     _BVBBBB_
-    _BBXBBB_
     _BBRBBB_
-    _BBXBBB_
-    _BBXBBB_
+    _BBRBBB_
+    _BBBBBB_
+    _BBBBBB_
     ________
 
 path:
   nodes[2]{id,x,y,role}:
-    N00_start,4,3,start
-    N01_exit,4,4,exit
+    N00_start,3,3,start
+    N01_exit,3,4,exit
   edges[1]{from,to,allowed,bidirectional,shortcut}:
     N00_start,N01_exit,All,true,false
 
