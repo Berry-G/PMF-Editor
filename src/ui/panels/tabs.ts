@@ -8,6 +8,8 @@
 import type { Store } from '../state.js';
 import { UI } from '../../core/palette.js';
 import { setField, setTable, type FieldPath } from '../../core/commands/fields.js';
+import { setEdgeProps } from '../../core/commands/edges.js';
+import { setNodeRole } from '../../core/commands/nodes.js';
 import { showResizeDialog } from './dialogs.js';
 import { Cell, CELL_LABEL } from '../../core/model/cell.js';
 import { countCells } from '../../core/model/map.js';
@@ -25,6 +27,8 @@ export const EXPOSED_FIELDS: readonly FieldPath[] = [
   'presentation.hitFlashSeconds', 'presentation.debrisCount', 'presentation.debrisSeconds', 'presentation.healthBarHideWhenFull', 'presentation.masterVolume',
   'toggles.alliesCanDieWhileMarching', 'toggles.enemiesTargetAllies',
 ];
+/** 'mother.followsPath' → 'followsPath'. 점이 없으면 그대로 반환. I-3 로 pop()! 제거 대상. */
+const leaf = (p: string): string => p.slice(p.lastIndexOf('.') + 1);
 
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
   const fld = (p: FieldPath, v: number | boolean, min: number, max: number) => {
@@ -33,9 +37,9 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = v;
       cb.dataset.path = p;
       cb.onchange = () => store.dispatch(setField(p, cb.checked));
-      lb.append(cb, ' ' + p.split('.').pop()!); body.append(lb); return;
+      lb.append(cb, ' ' + leaf(p)); body.append(lb); return;
     }
-    lb.textContent = p.split('.').pop()! + ' ';
+    lb.textContent = leaf(p) + ' ';
     const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(v);
     inp.style.width = '60px'; inp.dataset.path = p;
     inp.onblur = () => { const n = Number(inp.value); if (!isNaN(n)) store.dispatch(setField(p, Math.max(min, Math.min(max, n)))); };
@@ -83,20 +87,51 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
       section('경로');
       const nt = document.createElement('table'); nt.style.fontSize = '12px';
       nt.innerHTML = '<tr><th>ID</th><th>역할</th><th>위치</th></tr>';
+      const ROLES = ['waypoint', 'start', 'exit', 'branch'] as const;
       for (const n of d.path.nodes) {
         const tr = document.createElement('tr'); tr.style.cursor = 'pointer';
         tr.onclick = () => store.update((_s) => ({ selection: { kind: 'nodes' as const, ids: [n.id] } }));
-        tr.innerHTML = '<td>' + n.id + '</td><td>' + n.role + '</td><td>(' + n.x + ',' + n.y + ')</td>';
-        nt.append(tr);
+        const idCell = document.createElement('td'); idCell.textContent = n.id;
+        const roleCell = document.createElement('td');
+        const sel = document.createElement('select');
+        for (const r of ROLES) { const o = document.createElement('option'); o.value = r; o.textContent = r; if (n.role === r) o.selected = true; sel.append(o); }
+        sel.onchange = () => { store.state.history.beginStroke(); store.dispatch(setNodeRole(d, n.id, sel.value as typeof ROLES[number])); store.state.history.endStroke(); };
+        sel.onclick = (e) => e.stopPropagation();
+        roleCell.append(sel);
+        const posCell = document.createElement('td'); posCell.textContent = '(' + n.x + ',' + n.y + ')';
+        tr.append(idCell, roleCell, posCell); nt.append(tr);
       }
       body.append(nt);
       const et = document.createElement('table'); et.style.fontSize = '12px';
-      et.innerHTML = '<tr><th>from</th><th>→</th><th>to</th><th>양방향</th><th>지름길</th></tr>';
+      et.innerHTML = '<tr><th>from</th><th>→</th><th>to</th><th>허용</th><th>양방향</th><th>지름길</th></tr>';
       d.path.edges.forEach((e, i) => {
         const tr = document.createElement('tr'); tr.style.cursor = 'pointer';
         tr.onclick = () => store.update((_s) => ({ selection: { kind: 'edge' as const, index: i } }));
-        tr.innerHTML = '<td>' + e.from + '</td><td>→</td><td>' + e.to + '</td><td>' + (e.bidirectional ? '○' : '') + '</td><td>' + (e.shortcut ? 'S' : '') + '</td>';
-        et.append(tr);
+        const f = document.createElement('td'); f.textContent = e.from;
+        const ar = document.createElement('td'); ar.textContent = '→';
+        const t = document.createElement('td'); t.textContent = e.to;
+        const aCell = document.createElement('td');
+        for (const agent of ['Escortee', 'Enemy', 'Ally'] as const) {
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = (e.allowed as readonly string[]).includes(agent); cb.disabled = e.shortcut;
+          cb.onchange = () => {
+            const cur = new Set(e.allowed);
+            if (cb.checked) cur.add(agent); else cur.delete(agent);
+            store.state.history.beginStroke(); store.dispatch(setEdgeProps(i, { allowed: [...cur] })); store.state.history.endStroke();
+          };
+          cb.onclick = (ev) => ev.stopPropagation();
+          aCell.append(cb, agent.substring(0, 3), ' ');
+        }
+        const bCell = document.createElement('td');
+        const bc = document.createElement('input'); bc.type = 'checkbox'; bc.checked = e.bidirectional;
+        bc.onchange = () => { store.state.history.beginStroke(); store.dispatch(setEdgeProps(i, { bidirectional: bc.checked })); store.state.history.endStroke(); };
+        bc.onclick = (ev) => ev.stopPropagation();
+        bCell.append(bc);
+        const sCell = document.createElement('td');
+        const sc = document.createElement('input'); sc.type = 'checkbox'; sc.checked = e.shortcut;
+        sc.onchange = () => { store.state.history.beginStroke(); store.dispatch(setEdgeProps(i, { shortcut: sc.checked })); store.state.history.endStroke(); };
+        sc.onclick = (ev) => ev.stopPropagation();
+        sCell.append(sc);
+        tr.append(f, ar, t, aCell, bCell, sCell); et.append(tr);
       });
       body.append(et);
     } else if (id === 'spawn') {
