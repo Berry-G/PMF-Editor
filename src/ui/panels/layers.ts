@@ -10,6 +10,7 @@ const LAYER_ITEMS: Array<{ id: LayerId | 'grid'; label: string }> = [
   { id: 'tiles', label: '타일' }, { id: 'grid', label: '격자' },
   { id: 'path', label: '경로' }, { id: 'objects', label: '오브젝트' },
   { id: 'reach', label: '도달 영역' }, { id: 'issues', label: '검증' },
+  { id: 'sim', label: '시뮬' },
 ];
 
 export function mountLayers(store: Store, container: HTMLElement): void {

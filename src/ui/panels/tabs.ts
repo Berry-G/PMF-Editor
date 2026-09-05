@@ -1,5 +1,5 @@
 /**
- * 목적: 하단 탭 4개 — 맵/경로/스폰/밸런스. SDD-03 §6.
+ * 목적: 하단 탭 5개 — 맵/경로/스폰/밸런스/시뮬. SDD-03 §6.
  * 왜 이 구조인가: 각 탭은 setField 커맨드로 dispatch. 숫자 입력은 blur 에서 한 번 확정.
  *   store.subscribe 로 문서 변경을 따라간다. dataset.path 로 포커스 복원.
  * 바꾸면 안 되는 것: blur/Enter 커맨드 확정 패턴. fld 의 p 가 FieldPath 로 고정.
