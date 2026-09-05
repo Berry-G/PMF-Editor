@@ -6,7 +6,7 @@
  * 근거: SDD-03 §4 [D-03-04], SDD-09 §9-4 [D-09-09-4]
  */
 import type { Store } from '../state.js';
-import { CELL_PX, BACKGROUND, COLOR } from '../../core/palette.js';
+import { CELL_PX, BACKGROUND, COLOR, UI } from '../../core/palette.js';
 import { View } from '../canvas/view.js';
 
 const MINIMAP_W = 200;
@@ -86,7 +86,7 @@ export class Minimap {
     }
 
     // 노드 점
-    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.fillStyle = UI.text;
     for (const n of state.history.doc.path.nodes) {
       this.ctx.beginPath();
       this.ctx.arc(ox + n.x * cellSize, oy + (map.height - 1 - n.y) * cellSize, 2, 0, Math.PI * 2);
@@ -99,11 +99,12 @@ export class Minimap {
     const vy0 = map.height - 1 - (-this.view.panY / S);
     const vw = this.ctx.canvas.width / dpr / S;
     const vh = this.ctx.canvas.height / dpr / S;
-    this.ctx.strokeStyle = '#FFFFFF';
+    this.ctx.strokeStyle = UI.text;
     this.ctx.lineWidth = 1;
     this.ctx.strokeRect(ox + vx0 * cellSize, oy + (map.height - 1 - (vy0 - vh + 1)) * cellSize, vw * cellSize, vh * cellSize);
   }
 }
+
 
 
 

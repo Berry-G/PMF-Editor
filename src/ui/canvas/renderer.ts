@@ -141,7 +141,7 @@ private drawObjects(doc: StageDocument): void {
       ctx.fillStyle = n.role === 'start' ? EDGE.nodeStart : n.role === 'exit' ? EDGE.nodeExit : EDGE.nodeNormal;
       ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
       if (doc.burst.triggerNodeIds.includes(n.id)) {
-        ctx.fillStyle = '#FFD600'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = EDGE.shortcut; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('⚡', cx, cy - 12);
       }
     }
@@ -195,6 +195,7 @@ private drawObjects(doc: StageDocument): void {
     }
   }
 }
+
 
 
 

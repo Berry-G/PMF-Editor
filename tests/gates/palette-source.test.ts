@@ -7,7 +7,7 @@
  * 근거: SDD-01 §5 [D-01-05], SDD-06 §4 [D-06-04], ADR-E09
  */
 import { describe, expect, it } from 'vitest';
-import { read } from '../util/walk.js';
+import { read, walk } from '../util/walk.js';
 
 const PATH = 'src/core/palette.ts';
 // 왜 줄 시작을 요구하나: 헤더 주석이 이 마커를 설명하면서 언급하기 때문에, 단순 포함 검사로는
@@ -40,3 +40,22 @@ describe('팔레트 출처 게이트', () => {
     expect(found.length).toBeGreaterThan(5);
   });
 });
+
+
+describe('팔레트 외부 색 리터럴 게이트', () => {
+  const TS_FILES = walk('src', ['.ts']).filter(f => f !== 'src/core/palette.ts' && !f.endsWith('.test.ts') );
+  it('src/core/ 밖의 .ts 파일에 hex 색 리터럴이 없다', () => {
+    const problems: string[] = [];
+    for (const f of TS_FILES) {
+      const src = read(f);
+      const m = /'#[0-9A-Fa-f]{3,8}'/g;
+      let match;
+      while ((match = m.exec(src)) !== null) {
+        problems.push(f + ':' + (src.slice(0, match.index).split('\\n').length) + ' ' + match[0]);
+      }
+    }
+    expect(problems, 'hex 색 리터럴은 palette.ts 에만 있어야 한다 (ADR-E09). COLOR[cell] 로 대체하라').toEqual([]);
+  });
+});
+
+
