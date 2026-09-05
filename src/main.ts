@@ -9,6 +9,7 @@
  */
 import './styles.css';
 import { CELL_LABEL, PALETTE_ORDER } from './core/model/cell.js';
+import { loadSeed } from './core/model/factory.js';
 import { BACKGROUND, CELL_PX, COLOR, UI } from './core/palette.js';
 import { SCHEMA } from './core/schema.js';
 import { TOOL_VERSION } from './core/version.js';
@@ -93,7 +94,13 @@ function mountCanvasStub(): void {
     ctx.textAlign = 'center';
     ctx.fillText('M0 골격 — 맵 캔버스는 M2 에서 붙는다', vw / 2, originY + CELL_PX + 20);
 
-    status.textContent = `캔버스 ${vw}×${vh} · DPR ${dpr} · 셀 ${CELL_PX}px`;
+    // 왜 씨앗을 여기서 읽는가: 배포 파일 안에 씨앗이 실제로 인라인됐는지 확인하는 유일한 지점이다.
+    //   core 가 node:fs 로 씨앗을 읽던 시절에는 이 줄이 없어서 브라우저에서 깨지는 것을 아무도 몰랐다.
+    //   M2 에서 맵 캔버스가 붙으면 이 자리는 실제 문서 정보로 대체된다.
+    const seed = loadSeed();
+    status.textContent =
+      `캔버스 ${vw}×${vh} · DPR ${dpr} · 셀 ${CELL_PX}px` +
+      ` │ 씨앗 ${seed.name} ${seed.map.width}×${seed.map.height} · 노드 ${seed.path.nodes.length} · 엣지 ${seed.path.edges.length}`;
   };
 
   new ResizeObserver(draw).observe(wrap);

@@ -10,6 +10,8 @@
  */
 import { CELL_TO_CHAR, Cell as C } from '../model/cell.js';
 import { SCHEMA } from '../schema.js';
+import { formatNumber } from './number.js';
+import { str } from './quote.js';
 import type { Issue } from '../validate/index.js';
 import type { StageDocument, MapData, PathData, SpawnData, BurstData, EconomyData, EscorteeData, MotherData, PresentationData, ToggleData } from '../model/stage.js';
 
@@ -41,22 +43,128 @@ const N2 = '# 난이도는 경제로만 조절한다. 적 체력·데미지에 �
 const O1 = '# 모체는 보호대상과 같은 start 노드에서 출발한다 (추격자 그림). 속도는 반드시 보호대상보다 느려야 한다.';
 const G1 = '# GDD §13 미결정 사항 실험 토글 (D-03, D-04)';
 
-function p(lines: string[], a: string[]): void { for (const l of a) lines.push(l); }
-function encodeMap(map: MapData, lines: string[]): void { p(lines, [M1, M2, M3, M4]); lines.push('map:'); lines.push('  width: ' + map.width); lines.push('  height: ' + map.height); lines.push('  origin[2]: ' + map.origin[0] + ',' + map.origin[1]); const rows: string[] = []; for (let r = 0; r < map.height; r++) { const y = map.height - 1 - r; let rs = ''; for (let x = 0; x < map.width; x++) rs += CELL_TO_CHAR[(map.cells[y * map.width + x]!) as C] ?? '?'; rows.push(rs); } lines.push('  rows[' + map.height + ']{row}:'); for (const r of rows) lines.push('    ' + r); }
-function encodePath(path: PathData, lines: string[]): void { p(lines, [P1, P2, P3, P4]); lines.push('path:'); lines.push('  nodes[' + path.nodes.length + ']{id,x,y,role}:'); for (const n of path.nodes) lines.push('    ' + n.id + ',' + n.x + ',' + n.y + ',' + n.role); p(lines, [E1, E2]); lines.push('  edges[' + path.edges.length + ']{from,to,allowed,bidirectional,shortcut}:'); for (const e of path.edges) { const allowed = e.allowed.length === 3 ? 'All' : [...new Set(e.allowed)].join('+'); lines.push('    ' + e.from + ',' + e.to + ',' + allowed + ',' + e.bidirectional + ',' + e.shortcut); } }
-function encodeSpawn(spawn: SpawnData, lines: string[]): void { p(lines, [S1, S2, S3]); lines.push('spawn:'); lines.push('  volleyCount: ' + spawn.volleyCount); lines.push('  volleySpacing: ' + spawn.volleySpacing); lines.push('  restSeconds: ' + spawn.restSeconds); lines.push('  telegraphSeconds: ' + spawn.telegraphSeconds); p(lines, [T1]); lines.push('  table[' + spawn.table.length + ']{enemy,weight}:'); for (const e of spawn.table) lines.push('    ' + e.enemy + ',' + e.weight); p(lines, [H5]); lines.push('  healthByProgress[' + spawn.healthByProgress.length + ']{t,mul}:'); for (const k of spawn.healthByProgress) lines.push('    ' + k.t + ',' + k.mul); }
-function encodeBurst(burst: BurstData, lines: string[]): void { p(lines, [B1]); lines.push('burst:'); lines.push('  triggerNodeIds[' + burst.triggerNodeIds.length + ']: ' + burst.triggerNodeIds.join(',')); lines.push('  duration: ' + burst.duration); lines.push('  volleyCount: ' + burst.volleyCount); lines.push('  restSeconds: ' + burst.restSeconds); lines.push('  recoverySpeedMultiplier: ' + burst.recoverySpeedMultiplier); lines.push('  recoverySeconds: ' + burst.recoverySeconds); }
-function encodeEconomy(economy: EconomyData, lines: string[]): void { p(lines, [N1, N2]); lines.push('economy:'); lines.push('  startingResource: ' + economy.startingResource); lines.push('  shortcutCost: ' + economy.shortcutCost); lines.push('  difficulties[3]{difficulty,displayName,killReward,resourcePerSecond}:'); for (const d of economy.difficulties) lines.push('    ' + d.difficulty + ',' + d.displayName + ',' + d.killReward + ',' + d.resourcePerSecond); }
-function encodeEscortee(escortee: EscorteeData, lines: string[]): void { lines.push('escortee:'); lines.push('  speed: ' + escortee.speed); lines.push('  maxHealth: ' + escortee.maxHealth); }
-function encodeMother(mother: MotherData, lines: string[]): void { p(lines, [O1]); lines.push('mother:'); lines.push('  speed: ' + mother.speed); lines.push('  spawnDelay: ' + mother.spawnDelay); lines.push('  followsPath: ' + mother.followsPath); }
-function encodePresentation(presentation: PresentationData, lines: string[]): void { lines.push('presentation:'); lines.push('  uiSlowMotionScale: ' + presentation.uiSlowMotionScale); lines.push('  shotLineSeconds: ' + presentation.shotLineSeconds); lines.push('  magicMissileSpeed: ' + presentation.magicMissileSpeed); lines.push('  hitFlashSeconds: ' + presentation.hitFlashSeconds); lines.push('  debrisCount: ' + presentation.debrisCount); lines.push('  debrisSeconds: ' + presentation.debrisSeconds); lines.push('  healthBarHideWhenFull: ' + presentation.healthBarHideWhenFull); lines.push('  masterVolume: ' + presentation.masterVolume); }
-function encodeToggles(toggles: ToggleData, lines: string[]): void { p(lines, [G1]); lines.push('toggles:'); lines.push('  alliesCanDieWhileMarching: ' + toggles.alliesCanDieWhileMarching); lines.push('  enemiesTargetAllies: ' + toggles.enemiesTargetAllies); }
+function p(lines: string[], a: string[]): void {
+  for (const l of a) lines.push(l);
+}
+
+// 왜 별칭인가: 숫자는 반드시 formatNumber 를 거쳐야 한다 (SDD-09 §2-3).
+//   `+ 값` 문자열 결합은 -0 과 지수 표기를 그대로 흘려보내 왕복을 깨뜨린다.
+const n = formatNumber;
+const b = (v: boolean): string => (v ? 'true' : 'false');
+
+function encodeMap(map: MapData, lines: string[]): void {
+  p(lines, [M1, M2, M3, M4]);
+  lines.push('map:');
+  lines.push('  width: ' + n(map.width));
+  lines.push('  height: ' + n(map.height));
+  lines.push('  origin[2]: ' + n(map.origin[0]) + ',' + n(map.origin[1]));
+  lines.push('  rows[' + n(map.height) + ']{row}:');
+  // 왜 위에서부터 뒤집는가: 파일의 첫 행이 y = height-1 이어야 화면과 같은 그림이 된다 (SDD-02 §2-1).
+  for (let r = 0; r < map.height; r++) {
+    const y = map.height - 1 - r;
+    let row = '';
+    for (let x = 0; x < map.width; x++) row += CELL_TO_CHAR[map.cells[y * map.width + x] as C] ?? '?';
+    lines.push('    ' + row);
+  }
+}
+
+function encodePath(path: PathData, lines: string[]): void {
+  p(lines, [P1, P2, P3, P4]);
+  lines.push('path:');
+  lines.push('  nodes[' + n(path.nodes.length) + ']{id,x,y,role}:');
+  for (const node of path.nodes) {
+    lines.push('    ' + str(node.id) + ',' + n(node.x) + ',' + n(node.y) + ',' + node.role);
+  }
+  p(lines, [E1, E2]);
+  lines.push('  edges[' + n(path.edges.length) + ']{from,to,allowed,bidirectional,shortcut}:');
+  for (const e of path.edges) {
+    // 왜 셋 다면 'All' 인가: 게임 PathAgent.All 과 같은 뜻이고 씨앗도 그렇게 적혀 있다.
+    const allowed = e.allowed.length === 3 ? 'All' : [...new Set(e.allowed)].join('+');
+    lines.push(
+      '    ' + str(e.from) + ',' + str(e.to) + ',' + allowed + ',' + b(e.bidirectional) + ',' + b(e.shortcut),
+    );
+  }
+}
+
+function encodeSpawn(spawn: SpawnData, lines: string[]): void {
+  p(lines, [S1, S2, S3]);
+  lines.push('spawn:');
+  lines.push('  volleyCount: ' + n(spawn.volleyCount));
+  lines.push('  volleySpacing: ' + n(spawn.volleySpacing));
+  lines.push('  restSeconds: ' + n(spawn.restSeconds));
+  lines.push('  telegraphSeconds: ' + n(spawn.telegraphSeconds));
+  p(lines, [T1]);
+  lines.push('  table[' + n(spawn.table.length) + ']{enemy,weight}:');
+  for (const e of spawn.table) lines.push('    ' + str(e.enemy) + ',' + n(e.weight));
+  p(lines, [H5]);
+  lines.push('  healthByProgress[' + n(spawn.healthByProgress.length) + ']{t,mul}:');
+  for (const k of spawn.healthByProgress) lines.push('    ' + n(k.t) + ',' + n(k.mul));
+}
+
+function encodeBurst(burst: BurstData, lines: string[]): void {
+  p(lines, [B1]);
+  lines.push('burst:');
+  lines.push('  triggerNodeIds[' + n(burst.triggerNodeIds.length) + ']: ' + burst.triggerNodeIds.map(str).join(','));
+  lines.push('  duration: ' + n(burst.duration));
+  lines.push('  volleyCount: ' + n(burst.volleyCount));
+  lines.push('  restSeconds: ' + n(burst.restSeconds));
+  lines.push('  recoverySpeedMultiplier: ' + n(burst.recoverySpeedMultiplier));
+  lines.push('  recoverySeconds: ' + n(burst.recoverySeconds));
+}
+
+function encodeEconomy(economy: EconomyData, lines: string[]): void {
+  p(lines, [N1, N2]);
+  lines.push('economy:');
+  lines.push('  startingResource: ' + n(economy.startingResource));
+  lines.push('  shortcutCost: ' + n(economy.shortcutCost));
+  lines.push(
+    '  difficulties[' + n(economy.difficulties.length) + ']{difficulty,displayName,killReward,resourcePerSecond}:',
+  );
+  for (const d of economy.difficulties) {
+    // 왜 difficulty 는 인용하지 않는가: Easy/Normal/Hard 셋뿐인 enum 이라 인용 조건에 걸릴 수 없다.
+    //   displayName 은 기획자가 자유롭게 쓰는 값이라 반드시 판정을 거친다.
+    lines.push('    ' + d.difficulty + ',' + str(d.displayName) + ',' + n(d.killReward) + ',' + n(d.resourcePerSecond));
+  }
+}
+
+function encodeEscortee(escortee: EscorteeData, lines: string[]): void {
+  lines.push('escortee:');
+  lines.push('  speed: ' + n(escortee.speed));
+  lines.push('  maxHealth: ' + n(escortee.maxHealth));
+}
+
+function encodeMother(mother: MotherData, lines: string[]): void {
+  p(lines, [O1]);
+  lines.push('mother:');
+  lines.push('  speed: ' + n(mother.speed));
+  lines.push('  spawnDelay: ' + n(mother.spawnDelay));
+  lines.push('  followsPath: ' + b(mother.followsPath));
+}
+
+function encodePresentation(pr: PresentationData, lines: string[]): void {
+  lines.push('presentation:');
+  lines.push('  uiSlowMotionScale: ' + n(pr.uiSlowMotionScale));
+  lines.push('  shotLineSeconds: ' + n(pr.shotLineSeconds));
+  lines.push('  magicMissileSpeed: ' + n(pr.magicMissileSpeed));
+  lines.push('  hitFlashSeconds: ' + n(pr.hitFlashSeconds));
+  lines.push('  debrisCount: ' + n(pr.debrisCount));
+  lines.push('  debrisSeconds: ' + n(pr.debrisSeconds));
+  lines.push('  healthBarHideWhenFull: ' + b(pr.healthBarHideWhenFull));
+  lines.push('  masterVolume: ' + n(pr.masterVolume));
+}
+
+function encodeToggles(toggles: ToggleData, lines: string[]): void {
+  p(lines, [G1]);
+  lines.push('toggles:');
+  lines.push('  alliesCanDieWhileMarching: ' + b(toggles.alliesCanDieWhileMarching));
+  lines.push('  enemiesTargetAllies: ' + b(toggles.enemiesTargetAllies));
+}
 
 export interface EncodeOptions { toolVersion: string; issues?: ReadonlyArray<Issue> }
 export function encode(doc: StageDocument, opts: EncodeOptions): string {
   const out: string[] = []; out.push(H1); out.push(H2); out.push(H3); out.push(H4);
   if (opts.issues !== undefined && opts.issues.some(i => i.severity === 'error')) { const n = opts.issues.filter(i => i.severity === 'error').length; out.push('# ⚠ 검증 실패 ' + n + '건 — 임포트되지 않는다. 툴의 검증 탭을 보라.'); }
-  out.push('schema: ' + SCHEMA); out.push('name: ' + doc.name); out.push('');
+  out.push('schema: ' + SCHEMA); out.push('name: ' + str(doc.name)); out.push('');
   encodeMap(doc.map, out); out.push(''); encodePath(doc.path, out); out.push(''); encodeSpawn(doc.spawn, out); out.push(''); encodeBurst(doc.burst, out); out.push(''); encodeEconomy(doc.economy, out); out.push(''); encodeEscortee(doc.escortee, out); out.push(''); encodeMother(doc.mother, out); out.push(''); encodePresentation(doc.presentation, out); out.push(''); encodeToggles(doc.toggles, out);
   return out.join('\n') + '\n';
 }

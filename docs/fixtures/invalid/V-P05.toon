@@ -11,16 +11,17 @@ map:
     _BVBBBB_
     _BBRBBB_
     _BBRBBB_
-    _BBBBBB_
+    _BBRBBB_
     _BBBBBB_
     ________
 
 path:
-  nodes[2]{id,x,y,role}:
-    N00_start,3,3,start
-    N01_exit,3,4,exit
+  nodes[3]{id,x,y,role}:
+    N00_start,3,2,start
+    N01,3,3,waypoint
+    N02_exit,3,4,exit
   edges[1]{from,to,allowed,bidirectional,shortcut}:
-  edges[0]{from,to,allowed,bidirectional,shortcut}:
+    N00_start,N01,All,true,false
 
 spawn:
   volleyCount: 1

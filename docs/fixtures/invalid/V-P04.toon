@@ -11,16 +11,19 @@ map:
     _BVBBBB_
     _BBRBBB_
     _BBRBBB_
-    _BBBBBB_
+    _BBRBBB_
     _BBBBBB_
     ________
 
 path:
-  nodes[2]{id,x,y,role}:
-    N00_start,3,3,start
-    N01_exit,3,4,exit
-  edges[1]{from,to,allowed,bidirectional,shortcut}:
-    N00_start,N01_exit,Enemy,true,true
+  nodes[3]{id,x,y,role}:
+    N00_start,3,2,start
+    N01,3,3,waypoint
+    N02_exit,3,4,exit
+  edges[3]{from,to,allowed,bidirectional,shortcut}:
+    N00_start,N01,All,true,false
+    N01,N02_exit,All,true,false
+    N00_start,N02_exit,All,true,true
 
 spawn:
   volleyCount: 1

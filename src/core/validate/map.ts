@@ -61,14 +61,17 @@ export function validateMap(doc: StageDocument): Issue[] {
   // V-M06/V-M07: 도달 영역
   const reach = computeReachability(map);
   const unreachable = reach.totalBuildable - reach.reachableBuildable;
-  if (unreachable > 0) {
-    const pct = Math.round((unreachable / reach.totalBuildable) * 100);
-    const sev: 'warning' | 'info' = (unreachable / reach.totalBuildable) > 0.5 ? 'warning' : 'info';
-    issues.push({
-      id: 'V-M06', severity: sev, path: '',
-      message: `마을에서 갈 수 없는 배치 칸이 ${unreachable}/${reach.totalBuildable} (${pct}%) 다`,
-    });
-  }
+  // 왜 조건 없이 항상 내는가: 이 숫자는 오류 신호가 아니라 **상시 계기판**이다.
+  //   기획자가 맵을 그리는 내내 "지금 몇 칸이 닿지 않는가" 를 보고 있어야 한다
+  //   (SDD-03 §4 — 레이어를 꺼도 상태줄 숫자는 남는다). 0 일 때 침묵하면 계기가 죽은 것인지
+  //   0 인 것인지 구분할 수 없다. 심각도만 비율에 따라 올린다.
+  const ratio = reach.totalBuildable === 0 ? 0 : unreachable / reach.totalBuildable;
+  issues.push({
+    id: 'V-M06',
+    severity: ratio > 0.5 ? 'warning' : 'info',
+    path: '',
+    message: `마을에서 갈 수 없는 배치 칸이 ${unreachable}/${reach.totalBuildable} (${Math.round(ratio * 100)}%) 다`,
+  });
 
   for (const pv of reach.perVillage) {
     if (pv.buildable === 0) {

@@ -23,7 +23,7 @@ path:
     N00_start,N01_exit,All,true,false
 
 spawn:
-  volleyCount: 1
+  volleyCount: 0
   volleySpacing: 0.5
   restSeconds: 1
   telegraphSeconds: 0.5
@@ -51,11 +51,11 @@ economy:
     Hard,어려움,3,0
 
 escortee:
-  speed: 0
+  speed: 0.42
   maxHealth: 100
 
 mother:
-  speed: 0
+  speed: 0.28
   spawnDelay: 5
   followsPath: true
 

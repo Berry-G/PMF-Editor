@@ -16,10 +16,11 @@ map:
     ________
 
 path:
-  nodes[2]{id,x,y,role}:
+  nodes[3]{id,x,y,role}:
     N00_start,3,3,start
-    N00_start,0,0,start
-    N01_branch,0,4,branch
+    N01_exit,3,4,exit
+    N02,5,3,waypoint
+  edges[1]{from,to,allowed,bidirectional,shortcut}:
     N00_start,N01_exit,All,true,false
 
 spawn:

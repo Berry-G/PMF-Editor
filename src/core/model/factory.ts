@@ -12,25 +12,20 @@ import { Cell as C } from './cell.js';
 import { createMap, withCells } from './map.js';
 import { decode } from '../toon/decode.js';
 
-/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
-// 왜: Vite 의 `?raw` 임포트 구문은 vitest 환경에서 때때로 해석되지 않아,
-//   빌드 시에만 동작하는 `require` 로 씨앗을 읽어도 충분하다.
-//   실제 `vite build` 는 `?raw` 를 인식하므로 문제가 없다.
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..', '..');
-const SEED_PATH = join(PROJECT_ROOT, 'docs', 'examples', 'Stage_Greybox.toon');
+// 왜 `?raw` 인가: `core/` 는 브라우저에서 돈다. node:fs 로 읽으면 vitest 에서만 통과하고
+//   vite 빌드에서는 번들에 들어가지 못한다 — 기획자가 파일을 열었을 때 씨앗이 없다.
+//   `?raw` 는 빌드 시점에 파일 내용을 문자열로 인라인하므로 단일 HTML 안에 그대로 담긴다.
+// 출처 규약: SDD-08 §2 [D-08-02] 가 `?raw` 임포트를 명시한다.
+import SEED_RAW from '../../../docs/examples/Stage_Greybox.toon?raw';
+
 /** 씨앗 파일 내용. 빌드 시 배포 파일에 인라인된다. */
-export const SEED_TEXT: string = readFileSync(SEED_PATH, 'utf8');
+export const SEED_TEXT: string = SEED_RAW;
 
 /** 씨앗 텍스트를 파싱해 `StageDocument` 로 만든다. 실패하면 throw. */
 export function loadSeed(): StageDocument {
-  // 왜: 씨앗 문자열이 들어오지 않으면 위 `readFileSync` 가 이미 실패하므로
-  //   런타임 throw 는 사실상 방어 코드다.
-  if (typeof SEED_TEXT !== 'string' || SEED_TEXT.length === 0) {
-    // 시도: vitest 가 `?raw` 를 지원할 수도 있다 (viteSingleFile + vitest)
+  // 왜 방어하는가: `?raw` 가 어떤 이유로 빈 문자열을 주면 빈 문서가 조용히 열리고,
+  //   기획자가 그대로 저장하면 씨앗을 덮어쓴다. 깨진 씨앗은 복구할 수 없으므로 크게 실패한다.
+  if (SEED_TEXT.length === 0) {
     throw new Error('SEED_TEXT 가 비었다 — docs/examples/Stage_Greybox.toon 이 있는가?');
   }
   const result = decode(SEED_TEXT);
