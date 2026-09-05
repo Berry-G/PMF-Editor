@@ -12,7 +12,7 @@ import { UI } from '../../core/palette.js';
 
 const SEV_COLOR: Record<string, string> = { error: UI.error, warning: UI.warning, info: UI.info };
 
-export function mountIssues(store: Store, container: HTMLElement, view: View): void {
+export function mountIssues(store: Store, container: HTMLElement, view: View, wrap: HTMLElement): void {
   const render = (state: EditorState) => {
     container.innerHTML = '';
     if (state.issues.length === 0) { container.textContent = '✓ 검증 통과'; return; }
@@ -21,7 +21,7 @@ export function mountIssues(store: Store, container: HTMLElement, view: View): v
       div.onclick = () => {
         const firstCell = iss.cells?.[0];
         if (firstCell) {
-          view.centerOnCell(firstCell.x, firstCell.y, state.history.doc.map, 800, 600);
+          view.centerOnCell(firstCell.x, firstCell.y, state.history.doc.map, wrap.clientWidth, wrap.clientHeight);
           store.notifyViewChanged();
         }
         const nodeIds = iss.nodeIds;

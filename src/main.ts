@@ -70,7 +70,7 @@ function main(): void {
   mountKeyboard(store, view);
   mountProps(store, need<HTMLElement>('#props'));
   mountTabs(store, need<HTMLElement>('#tabs'), need<HTMLElement>('#tab-body'));
-  mountIssues(store, need<HTMLElement>('#issues'), view);
+  mountIssues(store, need<HTMLElement>('#issues'), view, wrap);
 
   // beforeunload: dirty 확인
   window.addEventListener('beforeunload', (e) => {
