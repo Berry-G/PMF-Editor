@@ -252,27 +252,49 @@ else if (id === 'balance') {
           const W = cv.width, H = cv.height; ctx.clearRect(0, 0, W, H);
           const maxT = r.stageSeconds || 1; const pad = 8;
           const px = (t: number) => pad + (t / maxT) * (W - pad * 2);
-          // 버스트 창 (음영) — ACTOR.mother
           ctx.fillStyle = ACTOR.mother; ctx.globalAlpha = 0.2;
           for (const b of r.bursts) { ctx.fillRect(px(b.start), 0, px(b.end) - px(b.start), H); }
           ctx.globalAlpha = 1;
-          // 거리 곡선 — ACTOR.escortee
           ctx.strokeStyle = ACTOR.escortee; ctx.lineWidth = 1.5; ctx.beginPath();
           for (let i = 0; i < r.samples.length; i++) {
-            const s = r.samples[i]!; const y = H - 10 - (s.distance / Math.max(10, s.distance + 5)) * (H - 20);
+            const s = r.samples[i]; if (!s) continue; const y = H - 10 - (s.distance / Math.max(10, s.distance + 5)) * (H - 20);
             if (i === 0) ctx.moveTo(px(s.t), y); else ctx.lineTo(px(s.t), y);
           }
           ctx.stroke();
-          // 스폰 막대 — ACTOR.walker
           ctx.fillStyle = ACTOR.walker; ctx.globalAlpha = 0.5;
           for (const se of r.spawnEvents) { const x = px(se.t); ctx.fillRect(x, H - 6, 2, 6); }
           ctx.globalAlpha = 1;
-          // 접촉 — ACTOR.scout
           ctx.fillStyle = ACTOR.scout;
           for (const c of r.contacts) { const x = px(c.t); ctx.beginPath(); ctx.arc(x, H - 6, 3, 0, Math.PI * 2); ctx.fill(); }
-          // 축 레이블 — UI.textDim
           ctx.fillStyle = UI.textDim; ctx.font = '9px sans-serif';
           ctx.fillText('0', pad, H - 1); ctx.fillText(maxT.toFixed(1) + '초', W - pad - 30, H - 1);
+          // 재생 컨트롤
+          section('재생');
+          const playSec = document.createElement('span'); playSec.style.cssText = 'font-size:12px;color:' + UI.textDim;
+          const updatePlay = () => { playSec.textContent = store.state.simPlayTime.toFixed(1) + ' / ' + r.stageSeconds.toFixed(1) + '초'; };
+          const playBtn = document.createElement('button'); playBtn.textContent = '▶';
+          const stopBtn = document.createElement('button'); stopBtn.textContent = '⏹';
+          const scrub = document.createElement('input'); scrub.type = 'range'; scrub.min = '0'; scrub.max = String(r.stageSeconds); scrub.step = '0.1'; scrub.style.width = '200px';
+          scrub.oninput = () => { store.update((_s) => ({ simPlayTime: Number(scrub.value) })); };
+          playBtn.onclick = () => {
+            if (store.state.simPlaying) { store.update((_s) => ({ simPlaying: false })); playBtn.textContent = '▶'; return; }
+            store.update((_s) => ({ simPlaying: true })); playBtn.textContent = '⏸';
+            const speed = Number(spd.value);
+            let last = performance.now();
+            const tick = () => {
+              if (!store.state.simPlaying) { playBtn.textContent = '▶'; return; }
+              const now = performance.now(); const dt = ((now - last) / 1000) * speed; last = now;
+              const nt = Math.min(store.state.simPlayTime + dt, r.stageSeconds);
+              store.update((_s) => ({ simPlayTime: nt }));
+              if (nt >= r.stageSeconds) { store.update((_s) => ({ simPlaying: false })); playBtn.textContent = '▶'; return; }
+              requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          };
+          stopBtn.onclick = () => { store.update((_s) => ({ simPlaying: false, simPlayTime: 0 })); playBtn.textContent = '▶'; };
+          const ctrlRow = document.createElement('div'); ctrlRow.style.fontSize = '12px';
+          ctrlRow.append(playBtn, stopBtn, ' ', scrub, ' ', playSec); body.append(ctrlRow);
+          updatePlay();
         }
       }
     }

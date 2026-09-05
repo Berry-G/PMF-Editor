@@ -38,7 +38,8 @@ export interface EditorState {
   simStale: boolean;
   fileName: string;
   catalog: readonly EnemyCatalogEntry[];
-  /** 도구 프리뷰 — 합성 단계에서 격자 위에 투명 사각형으로 그린다. */
+  simPlayTime: number;
+  simPlaying: boolean;
   previewCells: readonly XY[];
   /** 선택 복사 클립보드: { width, height, cells (Uint8Array) } */
   clipboard: { width: number; height: number; cells: Uint8Array } | null;
@@ -64,6 +65,7 @@ export class Store {
       tool: 'brush', brushSize: 1, paletteCell: 3, eraserCell: 3,
       layers: defaultLayers(), showGrid: true, viewVersion: 0,
       issues, reach, sim: null, simStale: false,
+      simPlayTime: 0, simPlaying: false,
       fileName: 'untitled', catalog: DEFAULT_CATALOG,
       previewCells: [], clipboard: null,
     };

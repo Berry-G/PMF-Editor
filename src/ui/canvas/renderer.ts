@@ -43,7 +43,7 @@ export class Renderer {
     this.store.subscribe((_s, c) => {
       if (c.has('history') || c.has('doc')) { this.lastDoc = null; this.dirtyFlag = true; }
       if (c.has('reach') || c.has('issues')) { this.overlay.markAllDirty(); this.dirtyFlag = true; }
-      if (c.has('viewVersion') || c.has('previewCells') || c.has('selection')) this.dirtyFlag = true;
+      if (c.has('viewVersion') || c.has('previewCells') || c.has('selection') || c.has('simPlayTime') || c.has('simPlaying') || c.has('sim')) this.dirtyFlag = true;
       this.requestFrame();
     });
   }
@@ -178,6 +178,7 @@ private drawObjects(doc: StageDocument): void {
     if (layers.tiles) this.ctx.drawImage(this.tiles.canvas, px, py, map.width * S, map.height * S);
     if (layers.reach || layers.issues) this.ctx.drawImage(this.overlay.canvas, px, py, map.width * S, map.height * S);
     if (layers.path || layers.objects) this.ctx.drawImage(this.objects.canvas, px, py, map.width * S, map.height * S);
+    if (layers.sim && state.sim) this.drawSim(state, px, py, S);
     if (state.showGrid && S >= 8) {
       this.ctx.strokeStyle = UI.grid; this.ctx.lineWidth = 1;
       for (let x = 0; x <= map.width; x++) { this.ctx.beginPath(); this.ctx.moveTo(px + x * S, py); this.ctx.lineTo(px + x * S, py + map.height * S); this.ctx.stroke(); }
@@ -209,6 +210,39 @@ private drawObjects(doc: StageDocument): void {
       this.ctx.strokeRect(sx0, sy0, sw, sh);
       this.ctx.setLineDash([]);
     }
+  }
+
+  private drawSim(state: EditorState, px: number, py: number, S: number): void {
+    const t = state.simPlayTime;
+    const sim = state.sim;
+    if (!sim || sim.samples.length === 0) return;
+    const samples = sim.samples;
+    let i = 0;
+    while (i < samples.length - 1 && (samples[i + 1]?.t ?? Infinity) < t) i++;
+    const s0 = samples[i];
+    if (!s0) return;
+    let ex = s0.escortee.x, ey = s0.escortee.y, mx = s0.mother.x, my = s0.mother.y;
+    if (i < samples.length - 1) {
+      const s1 = samples[i + 1];
+      if (s1) {
+        const f = Math.max(0, Math.min(1, (t - s0.t) / (s1.t - s0.t)));
+        ex = s0.escortee.x + (s1.escortee.x - s0.escortee.x) * f;
+        ey = s0.escortee.y + (s1.escortee.y - s0.escortee.y) * f;
+        mx = s0.mother.x + (s1.mother.x - s0.mother.x) * f;
+        my = s0.mother.y + (s1.mother.y - s0.mother.y) * f;
+      }
+    }
+    const h = state.history.doc.map.height;
+    const ctx = this.ctx;
+    const es = CELL * ACTOR_SCALE.escortee / 2;
+    ctx.fillStyle = ACTOR.escortee;
+    ctx.beginPath();
+    ctx.arc(px + ex * S, py + (h - 1 - ey) * S, es * (S / CELL), 0, Math.PI * 2);
+    ctx.fill();
+    const ms = CELL * ACTOR_SCALE.mother / 2;
+    ctx.fillStyle = ACTOR.mother;
+    const sx = px + mx * S - ms * (S / CELL), sy = py + (h - 1 - my) * S - ms * (S / CELL);
+    ctx.fillRect(sx, sy, ms * 2 * (S / CELL), ms * 2 * (S / CELL));
   }
 }
 
