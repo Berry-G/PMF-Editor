@@ -13,6 +13,7 @@ import { decode } from '../../core/toon/decode.js';
 import { openFile, saveFile, saveFileAs } from '../../io/file.js';
 import type { FileSystemFileHandle } from '../../io/file.js';
 import { copyText } from '../../io/clipboard.js';
+import { showSaveErrorDialog } from './dialogs.js';
 
 // 저장 핸들 — File System Access API 핸들을 모듈 변수로 유지한다 (EditorState 에 두지 않음)
 let _saveHandle: FileSystemFileHandle | null = null;
@@ -39,9 +40,18 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
   dirtyBadge.textContent = '';
   container.append(dirtyBadge);
 
+  const issuesBadge = document.createElement('span');
+  issuesBadge.style.marginLeft = '8px';
+  issuesBadge.style.cursor = 'pointer';
+  container.append(issuesBadge);
+
   store.subscribe((state) => {
     dirtyBadge.textContent = state.history.dirty ? '*' : '';
     dirtyBadge.title = state.history.dirty ? '저장되지 않은 변경 있음' : '';
+    const errs = state.issues.filter(i => i.severity === 'error').length;
+    const warns = state.issues.filter(i => i.severity === 'warning').length;
+    issuesBadge.textContent = errs > 0 ? '⚠ ' + errs : warns > 0 ? '⚡ ' + warns : '';
+    issuesBadge.style.color = errs > 0 ? UI.error : warns > 0 ? UI.warning : UI.textDim;
   });
 
   // 버튼 자리
@@ -74,12 +84,20 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
   saveBtn.textContent = '저장';
   saveBtn.style.marginLeft = '4px';
   const doSave = async () => {
-    const doc = store.state.history.doc;
-    const text = encode(doc, { toolVersion: TOOL_VERSION, issues: store.state.issues });
-    const newHandle = await saveFile(text, _saveHandle, store.state.fileName + '.toon');
-    if (newHandle) { _saveHandle = newHandle; }
-    store.state.history.markSaved();
-    store.update((_s) => ({}));
+    const doSaveActual = async () => {
+      const doc = store.state.history.doc;
+      const text = encode(doc, { toolVersion: TOOL_VERSION, issues: store.state.issues });
+      const newHandle = await saveFile(text, _saveHandle, store.state.fileName + '.toon');
+      if (newHandle) { _saveHandle = newHandle; }
+      store.state.history.markSaved();
+      store.update((_s) => ({}));
+    };
+    const errorCount = store.state.issues.filter(i => i.severity === 'error').length;
+    if (errorCount > 0) {
+      const dialogEl = document.querySelector<HTMLElement>('#dialogs');
+      if (dialogEl) { showSaveErrorDialog(store, dialogEl, doSaveActual); return; }
+    }
+    await doSaveActual();
   };
   saveBtn.onclick = doSave;
   window.addEventListener('pmf-save', () => doSave());

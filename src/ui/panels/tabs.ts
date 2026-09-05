@@ -8,7 +8,8 @@
  */
 import type { Store } from '../state.js';
 import { UI } from '../../core/palette.js';
-import { setField, type FieldPath } from '../../core/commands/fields.js';
+import { setField, setTable, type FieldPath } from '../../core/commands/fields.js';
+import { showResizeDialog } from './dialogs.js';
 
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
   const fld = (p: FieldPath, v: number | boolean, min: number, max: number) => {
@@ -41,6 +42,9 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
       body.append(ni);
       const sz = document.createElement('p'); sz.style.cssText = 'font-size:12px;color:' + UI.textDim;
       sz.textContent = d.map.width + '×' + d.map.height; body.append(sz);
+      const resizeBtn = document.createElement('button'); resizeBtn.textContent = '크기 변경';
+      resizeBtn.onclick = () => { const di = document.querySelector<HTMLElement>('#dialogs'); if (di) showResizeDialog(store, di); };
+      body.append(resizeBtn);
     } else if (id === 'path') {
       section('경로');
       const nt = document.createElement('table'); nt.style.fontSize = '12px';
@@ -62,6 +66,20 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
       section('밸런스');
       fld('economy.startingResource', d.economy.startingResource, 50, 500);
       fld('economy.shortcutCost', d.economy.shortcutCost, 50, 500);
+      section('난이도');
+      d.economy.difficulties.forEach((diff, i) => {
+        const row = document.createElement('div'); row.style.fontSize = '12px';
+        const diffLabel = document.createElement('span');
+        diffLabel.textContent = diff.difficulty + ': ';
+        row.append(diffLabel);
+        const rw = document.createElement('input'); rw.type = 'number'; rw.value = String(diff.killReward); rw.style.width = '50px';
+        rw.onblur = () => {
+          const rows = d.economy.difficulties.map((df, di) => di === i ? { ...df, killReward: Number(rw.value) } : df);
+          store.dispatch(setTable('economy.difficulties', rows));
+        };
+        row.append(rw);
+        body.append(row);
+      });
     }
   };
   let active: TabId = 'map';
