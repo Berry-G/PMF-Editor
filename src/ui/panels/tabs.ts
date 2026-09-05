@@ -6,10 +6,13 @@
  * 근거: SDD-03 §6 [D-03-06]
  */
 import type { Store } from '../state.js';
-import { UI } from '../../core/palette.js';
+import { UI, ACTOR } from '../../core/palette.js';
 import { setField, setTable, type FieldPath } from '../../core/commands/fields.js';
 import { setEdgeProps } from '../../core/commands/edges.js';
 import { setNodeRole } from '../../core/commands/nodes.js';
+import { simulate } from '../../core/sim/simulate.js';
+import type { SimParams } from '../../core/sim/params.js';
+import { DEFAULT_SIM_PARAMS } from '../../core/sim/params.js';
 import { showResizeDialog } from './dialogs.js';
 import { Cell, CELL_LABEL } from '../../core/model/cell.js';
 import { countCells } from '../../core/model/map.js';
@@ -51,7 +54,7 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
     const h = document.createElement('strong'); h.textContent = title; h.style.fontSize = '12px';
     s.append(h); body.append(s); return s;
   };
-  type TabId = 'map' | 'path' | 'spawn' | 'balance';
+  type TabId = 'map' | 'path' | 'spawn' | 'balance' | 'sim';
   const render = (id: TabId) => {
     const ae = document.activeElement;
     let focusKey: string | null = null;
@@ -204,6 +207,74 @@ else if (id === 'balance') {
         dn.onblur = onBlur; kr.onblur = onBlur; rps.onblur = onBlur;
         row.append(dn, ' K:', kr, ' RPS:', rps); body.append(row);
       });
+    } else if (id === 'sim') {
+      const r = store.state.sim;
+      const isStale = store.state.simStale;
+      // 파라미터
+      section('파라미터');
+      const seedRow = document.createElement('div'); seedRow.style.fontSize = '12px';
+      seedRow.textContent = '시드 '; const si = document.createElement('input'); si.type = 'number'; si.value = String(store.state.sim?.seed ?? DEFAULT_SIM_PARAMS.seed); si.style.width = '60px';
+      const shortRow = document.createElement('div'); shortRow.style.fontSize = '12px';
+      shortRow.textContent = '지름길 개방 '; const sti = document.createElement('input'); sti.type = 'number'; sti.value = store.state.sim ? '120' : ''; sti.style.width = '60px'; sti.placeholder = '없음';
+      const spdRow = document.createElement('div'); spdRow.style.fontSize = '12px';
+      spdRow.textContent = '배속 '; const spd = document.createElement('select');
+      for (const v of ['1', '2', '4']) { const o = document.createElement('option'); o.value = v; o.textContent = v + 'x'; if (v === '1') o.selected = true; spd.append(o); }
+      seedRow.append(si); body.append(seedRow);
+      shortRow.append(sti); body.append(shortRow);
+      spdRow.append(spd); body.append(spdRow);
+      const runBtn = document.createElement('button'); runBtn.textContent = '▶ 실행'; runBtn.style.margin = '4px 0';
+      runBtn.onclick = () => {
+        const seed = Math.max(1, Math.floor(Number(si.value) || 1));
+        const shortcutOpenAt = sti.value ? Math.max(0, Number(sti.value)) : null;
+        const params: SimParams = { seed, dt: DEFAULT_SIM_PARAMS.dt, shortcutOpenAt, maxSeconds: DEFAULT_SIM_PARAMS.maxSeconds };
+        const result = simulate(d, params, store.state.catalog);
+        store.update((_s) => ({ sim: result, simStale: false }));
+        render('sim');
+      };
+      body.append(runBtn);
+      if (r) {
+        section('요약');
+        if (isStale) { const stale = document.createElement('span'); stale.textContent = '⚠ 낡음'; stale.style.color = UI.warning; body.append(stale); }
+        const sc = document.createElement('div'); sc.style.cssText = 'font-size:12px;color:' + UI.textDim;
+        const inc = r.incomeCeiling['Normal'] ?? r.incomeCeiling['보통'] ?? 0;
+        sc.innerHTML = '판 길이 <strong>' + r.stageSeconds.toFixed(3) + '</strong>초 · 총 스폰 <strong>' + r.totalSpawned + '</strong>기 · 수입 천장 Normal <strong>' + inc + '</strong>';
+        body.append(sc);
+        if (r.warnings.length > 0) {
+          const wl = document.createElement('div'); wl.style.cssText = 'font-size:12px;color:' + UI.error;
+          for (const w of r.warnings) { const p = document.createElement('p'); p.textContent = w; wl.append(p); }
+          body.append(wl);
+        }
+        section('타임라인');
+        const cv = document.createElement('canvas'); cv.width = 280; cv.height = 140; cv.style.width = '280px'; cv.style.height = '140px'; cv.style.border = '1px solid ' + UI.panelBorder;
+        body.append(cv);
+        const ctx = cv.getContext('2d');
+        if (ctx) {
+          const W = cv.width, H = cv.height; ctx.clearRect(0, 0, W, H);
+          const maxT = r.stageSeconds || 1; const pad = 8;
+          const px = (t: number) => pad + (t / maxT) * (W - pad * 2);
+          // 버스트 창 (음영) — ACTOR.mother
+          ctx.fillStyle = ACTOR.mother; ctx.globalAlpha = 0.2;
+          for (const b of r.bursts) { ctx.fillRect(px(b.start), 0, px(b.end) - px(b.start), H); }
+          ctx.globalAlpha = 1;
+          // 거리 곡선 — ACTOR.escortee
+          ctx.strokeStyle = ACTOR.escortee; ctx.lineWidth = 1.5; ctx.beginPath();
+          for (let i = 0; i < r.samples.length; i++) {
+            const s = r.samples[i]!; const y = H - 10 - (s.distance / Math.max(10, s.distance + 5)) * (H - 20);
+            if (i === 0) ctx.moveTo(px(s.t), y); else ctx.lineTo(px(s.t), y);
+          }
+          ctx.stroke();
+          // 스폰 막대 — ACTOR.walker
+          ctx.fillStyle = ACTOR.walker; ctx.globalAlpha = 0.5;
+          for (const se of r.spawnEvents) { const x = px(se.t); ctx.fillRect(x, H - 6, 2, 6); }
+          ctx.globalAlpha = 1;
+          // 접촉 — ACTOR.scout
+          ctx.fillStyle = ACTOR.scout;
+          for (const c of r.contacts) { const x = px(c.t); ctx.beginPath(); ctx.arc(x, H - 6, 3, 0, Math.PI * 2); ctx.fill(); }
+          // 축 레이블 — UI.textDim
+          ctx.fillStyle = UI.textDim; ctx.font = '9px sans-serif';
+          ctx.fillText('0', pad, H - 1); ctx.fillText(maxT.toFixed(1) + '초', W - pad - 30, H - 1);
+        }
+      }
     }
 
     // 포커스 복원
@@ -214,7 +285,7 @@ else if (id === 'balance') {
   };
 
   let active: TabId = 'map';
-  const tabDefs: [TabId, string][] = [['map', '맵'], ['path', '경로'], ['spawn', '스폰'], ['balance', '밸런스']];
+  const tabDefs: [TabId, string][] = [['map', '맵'], ['path', '경로'], ['spawn', '스폰'], ['balance', '밸런스'], ['sim', '시뮬']];
   for (const [id, label] of tabDefs) {
     const btn = document.createElement('button'); btn.textContent = label; btn.style.marginRight = '2px';
     btn.onclick = () => { active = id; render(id); };
@@ -223,7 +294,7 @@ else if (id === 'balance') {
   render(active);
 
   store.subscribe((_state, changed) => {
-    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues')) return;
+    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues') && !changed.has('sim') && !changed.has('simStale')) return;
     render(active);
   });
 }
