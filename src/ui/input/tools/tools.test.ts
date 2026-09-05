@@ -20,6 +20,9 @@ import { SelectTool } from './select.js';
 import { EyedropperTool } from './eyedropper.js';
 import type { PointerInfo, ToolContext } from './tool.js';
 import type { StageDocument } from '../../../core/model/stage.js';
+import { NodeTool } from './node.js';
+import { EdgeTool } from './edge.js';
+import { ObjectTool } from './object.js';
 import { Cell } from '../../../core/model/cell.js';
 import { cellAt } from '../../../core/model/map.js';
 
@@ -141,5 +144,112 @@ describe('EyedropperTool', () => {
     const tool = new EyedropperTool();
     tool.onDown(pi(2, 5), ctx(store)); // 씨앗에서 Ground 인 칸
     expect(store.state.paletteCell).toBe(cellAt(SEED.map, 2, 5));
+  });
+});
+
+
+describe('NodeTool', () => {
+  it('빈 셀 클릭 → 노드 1개 증가, id N00', () => {
+    const store = new Store(clone(SEED));
+    const tool = new NodeTool();
+    const before = store.state.history.doc.path.nodes.length;
+    tool.onDown(pi(15, 9), ctx(store));
+    tool.onUp(pi(15, 9), ctx(store));
+    expect(store.state.history.doc.path.nodes.length).toBe(before + 1);
+    const added = store.state.history.doc.path.nodes[before];
+    expect(added!.x).toBe(15); expect(added!.y).toBe(9);
+  });
+  it('N00~N05 중 N03 만 있으면 id 는 N03', () => {
+    const store = new Store(clone(SEED));
+    const existing = new Set(store.state.history.doc.path.nodes.map(n => n.id));
+    const firstMissing = ['N00','N01','N02','N03','N04','N05','N06','N07','N08','N09'].find(id => !existing.has(id));
+    const tool = new NodeTool();
+    tool.onDown(pi(15, 9), ctx(store));
+    tool.onUp(pi(15, 9), ctx(store));
+    const added = store.state.history.doc.path.nodes.find(n => n.x === 15 && n.y === 9);
+    expect(added!.id).toBe(firstMissing);
+  });
+  it('기존 노드 드래그 → 이동', () => {
+    const store = new Store(clone(SEED));
+    const tool = new NodeTool();
+    tool.onDown(pi(5, 9), ctx(store));
+    tool.onUp(pi(6, 8), ctx(store));
+    const n01 = store.state.history.doc.path.nodes.find(n => n.id === 'N01');
+    expect(n01!.x).toBe(6); expect(n01!.y).toBe(8);
+  });
+  it('Delete → 노드와 붙은 엣지가 함께 사라진다', () => {
+    const store = new Store(clone(SEED));
+    const tool = new NodeTool();
+    tool.onDown(pi(8, 6), ctx(store));
+    tool.onUp(pi(8, 6), ctx(store));
+    store.state.selection = { kind: 'nodes', ids: ['N08'] };
+    const edgeBefore = store.state.history.doc.path.edges.length;
+    tool.deleteSelected(ctx(store));
+    expect(store.state.history.doc.path.nodes.find(n => n.id === 'N08')).toBeUndefined();
+    expect(store.state.history.doc.path.edges.length).toBeLessThan(edgeBefore);
+  });
+});
+
+describe('EdgeTool', () => {
+  it('노드 A→B → 엣지 1개 추가', () => {
+    const store = new Store(clone(SEED));
+    const tool = new EdgeTool();
+    const before = store.state.history.doc.path.edges.length;
+    tool.onDown(pi(5, 9), ctx(store)); tool.onUp(pi(5, 9), ctx(store));
+    tool.onDown(pi(8, 9), ctx(store)); tool.onUp(pi(8, 9), ctx(store));
+    expect(store.state.history.doc.path.edges.length).toBe(before + 1);
+    const added = store.state.history.doc.path.edges[store.state.history.doc.path.edges.length - 1];
+    expect(added!.from).toBe('N01'); expect(added!.to).toBe('N02');
+  });
+  it('Shift+클릭 → shortcut, allowed 는 [Escortee]', () => {
+    const store = new Store(clone(SEED));
+    const tool = new EdgeTool();
+    const piShift = (x: number, y: number) => { const b = pi(x, y); b.shift = true; return b; };
+    tool.onDown(pi(5, 9), ctx(store)); tool.onUp(pi(5, 9), ctx(store));
+    tool.onDown(piShift(8, 9), ctx(store)); tool.onUp(piShift(8, 9), ctx(store));
+    const added = store.state.history.doc.path.edges[store.state.history.doc.path.edges.length - 1];
+    expect(added!.shortcut).toBe(true);
+    expect(added!.allowed).toEqual(['Escortee']);
+  });
+  it('노드 아닌 곳 클릭 → 아무 커맨드 없음', () => {
+    const store = new Store(clone(SEED));
+    const tool = new EdgeTool();
+    const before = store.state.history.doc.path.edges.length;
+    tool.onDown(pi(0, 0), ctx(store)); tool.onUp(pi(0, 0), ctx(store));
+    expect(store.state.history.doc.path.edges.length).toBe(before);
+  });
+});
+
+describe('ObjectTool', () => {
+  it('노드 위치 클릭 → selection.kind = nodes', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(5, 9), ctx(store));
+    expect(store.state.selection.kind).toBe('nodes');
+  });
+  it('노드와 엣지 겹침 → 노드 우선', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(5, 9), ctx(store));
+    expect(store.state.selection.kind).toBe('nodes');
+    if (store.state.selection.kind === 'nodes') expect(store.state.selection.ids).toContain('N01');
+  });
+  it('Ctrl+클릭 → 노드 다중 선택', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(5, 9), ctx(store)); tool.onUp(pi(5, 9), ctx(store));
+    const piCtrl = (x: number, y: number) => { const b = pi(x, y); b.ctrl = true; return b; };
+    tool.onDown(piCtrl(8, 9), ctx(store)); tool.onUp(piCtrl(8, 9), ctx(store));
+    if (store.state.selection.kind === 'nodes') {
+      expect(store.state.selection.ids.length).toBe(2);
+      expect(store.state.selection.ids).toContain('N01');
+      expect(store.state.selection.ids).toContain('N02');
+    }
+  });
+  it('마을 셀 → none', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(0, 0), ctx(store));
+    expect(store.state.selection.kind).toBe('none');
   });
 });

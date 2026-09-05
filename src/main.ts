@@ -17,6 +17,7 @@ import { mountLayers } from './ui/panels/layers.js';
 import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
 import { mountKeyboard } from './ui/input/keyboard.js';
+import { mountProps } from './ui/panels/props.js';
 import { decode } from './core/toon/decode.js';
 import { encode } from './core/toon/encode.js';
 import { TOOL_VERSION } from './core/version.js';
@@ -65,6 +66,7 @@ function main(): void {
   const status = new StatusBar(need<HTMLElement>('#statusbar'), store, view);
   mountPointer(canvas, store, view, status);
   mountKeyboard(store, view);
+  mountProps(store, need<HTMLElement>('#props'));
 
   // beforeunload: dirty 확인
   window.addEventListener('beforeunload', (e) => {

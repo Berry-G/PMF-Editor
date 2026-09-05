@@ -16,7 +16,23 @@ export function addNode(node: PathNode): Command {
   return { label: '노드 추가 ' + node.id, apply(d: StageDocument) { return { ...d, path: { ...d.path, nodes: [...d.path.nodes, node] } }; }, revert(d: StageDocument) { return { ...d, path: { ...d.path, nodes: d.path.nodes.filter(n => n.id !== node.id) } }; } };
 }
 
-export function moveNode(id: string, to: XY): Command { let prev: any; return { label: '노드 이동 ' + id, apply(d: StageDocument) { const ns = d.path.nodes.map(n => { if (n.id === id) { prev = n; return { ...n, x: to.x, y: to.y }; } return n; }); return { ...d, path: { ...d.path, nodes: ns } }; }, revert(d: StageDocument) { if (!prev) return d; return { ...d, path: { ...d.path, nodes: d.path.nodes.map(n => n.id === id ? prev! : n) } }; } }; }
+export function moveNode(id: string, to: XY): Command {
+  let prev: PathNode | undefined;
+  return {
+    label: '노드 이동 ' + id,
+    apply(d: StageDocument) {
+      const ns = d.path.nodes.map(n => {
+        if (n.id === id) { prev = n; return { ...n, x: to.x, y: to.y }; }
+        return n;
+      });
+      return { ...d, path: { ...d.path, nodes: ns } };
+    },
+    revert(d: StageDocument) {
+      if (!prev) return d;
+      return { ...d, path: { ...d.path, nodes: d.path.nodes.map(n => n.id === id ? (prev as PathNode) : n) } };
+    },
+  };
+}
 
 export function deleteNode(doc: StageDocument, id: string): Command {
   // 왜: 제거된 엣지와 트리거 참조를 기억해 revert 에서 복원한다.
@@ -66,4 +82,5 @@ export function setNodeRole(_doc: StageDocument, id: string, role: PathNode["rol
     return { ...d, path: { ...d.path, nodes: prevNodes.map(n => ({ ...n })) } };
   } };
 }
+
 
