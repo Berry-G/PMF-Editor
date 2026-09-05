@@ -18,6 +18,8 @@ import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
 import { mountKeyboard } from './ui/input/keyboard.js';
 import { mountProps } from './ui/panels/props.js';
+import { mountTabs } from './ui/panels/tabs.js';
+import { mountIssues } from './ui/panels/issues.js';
 import { decode } from './core/toon/decode.js';
 import { encode } from './core/toon/encode.js';
 import { TOOL_VERSION } from './core/version.js';
@@ -67,6 +69,8 @@ function main(): void {
   mountPointer(canvas, store, view, status);
   mountKeyboard(store, view);
   mountProps(store, need<HTMLElement>('#props'));
+  mountTabs(store, need<HTMLElement>('#tabs'), need<HTMLElement>('#tab-body'));
+  mountIssues(store, need<HTMLElement>('#issues'), view);
 
   // beforeunload: dirty 확인
   window.addEventListener('beforeunload', (e) => {
