@@ -118,23 +118,23 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
       fld('burst.recoverySpeedMultiplier', d.burst.recoverySpeedMultiplier, 0.1, 5);
       fld('burst.recoverySeconds', d.burst.recoverySeconds, 0, 30);
       section('스폰 표');
-      for (let i = 0; i < d.spawn.table.length; i++) {
-        const row = document.createElement('div'); row.style.fontSize = '12px';
-        const en = document.createElement('input'); en.value = d.spawn.table[i]!.enemy; en.style.width = '120px';
-        const wt = document.createElement('input'); wt.type = 'number'; wt.value = String(d.spawn.table[i]!.weight); wt.style.width = '50px';
+      d.spawn.table.forEach((spawnRow, i) => {
+        const rowEl = document.createElement('div'); rowEl.style.fontSize = '12px';
+        const en = document.createElement('input'); en.value = spawnRow.enemy; en.style.width = '120px';
+        const wt = document.createElement('input'); wt.type = 'number'; wt.value = String(spawnRow.weight); wt.style.width = '50px';
         const onBlur = () => { const rows = d.spawn.table.map((e, j) => j === i ? { enemy: en.value, weight: Number(wt.value) } : e); store.dispatch(setTable('spawn.table', rows)); };
         en.onblur = onBlur; wt.onblur = onBlur;
-        row.append(en, ' ×', wt); body.append(row);
-      }
+        rowEl.append(en, ' ×', wt); body.append(rowEl);
+      });
       section('체력 곡선');
-      for (let i = 0; i < d.spawn.healthByProgress.length; i++) {
-        const row = document.createElement('div'); row.style.fontSize = '12px';
-        const tI = document.createElement('input'); tI.type = 'number'; tI.value = String(d.spawn.healthByProgress[i]!.t); tI.style.width = '50px'; tI.step = '0.1';
-        const mI = document.createElement('input'); mI.type = 'number'; mI.value = String(d.spawn.healthByProgress[i]!.mul); mI.style.width = '60px'; mI.step = '0.1';
+      d.spawn.healthByProgress.forEach((hb, i) => {
+        const rowEl = document.createElement('div'); rowEl.style.fontSize = '12px';
+        const tI = document.createElement('input'); tI.type = 'number'; tI.value = String(hb.t); tI.style.width = '50px'; tI.step = '0.1';
+        const mI = document.createElement('input'); mI.type = 'number'; mI.value = String(hb.mul); mI.style.width = '60px'; mI.step = '0.1';
         const onBlur = () => { const rows = d.spawn.healthByProgress.map((e, j) => j === i ? { t: Number(tI.value), mul: Number(mI.value) } : e); store.dispatch(setTable('spawn.healthByProgress', rows)); };
         tI.onblur = onBlur; mI.onblur = onBlur;
-        row.append('t=', tI, ' mul=', mI); body.append(row);
-      }
+        rowEl.append('t=', tI, ' mul=', mI); body.append(rowEl);
+      });
     }
 else if (id === 'balance') {
       section('경제');
