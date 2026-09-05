@@ -9,8 +9,8 @@ import type { Tool, PointerInfo, ToolContext } from './tool.js';
 import { paintCells } from '../../../core/commands/paint.js';
 import { brushCells, lineCells } from '../../../core/geometry/shapes.js';
 
-import { Cell } from '../../../core/model/cell.js';
 import type { XY } from '../../../core/model/stage.js';
+import { Cell } from '../../../core/model/cell.js';
 
 export class BrushTool implements Tool {
   readonly id = 'brush' as const;

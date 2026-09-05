@@ -10,9 +10,21 @@ import type { ToolId } from '../state.js';
 import { View } from '../canvas/view.js';
 import { StatusBar } from '../panels/status.js';
 import { BrushTool } from './tools/brush.js';
+import { LineTool } from './tools/line.js';
+import { RectTool } from './tools/rect.js';
+import { FillTool } from './tools/fill.js';
+import { SelectTool } from './tools/select.js';
+import { EyedropperTool } from './tools/eyedropper.js';
 import type { Tool, PointerInfo, ToolContext } from './tools/tool.js';
 
-const TOOLS: Partial<Record<ToolId, Tool>> = { brush: new BrushTool() };
+const TOOLS: Partial<Record<ToolId, Tool>> = {
+  brush: new BrushTool(),
+  line: new LineTool(),
+  rect: new RectTool(),
+  fill: new FillTool(),
+  select: new SelectTool(),
+  eyedropper: new EyedropperTool(),
+};
 
 export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View, status: StatusBar): void {
   let panning = false, panStartX = 0, panStartY = 0, panStartPX = 0, panStartPY = 0, spaceDown = false;

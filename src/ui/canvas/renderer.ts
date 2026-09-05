@@ -43,10 +43,9 @@ export class Renderer {
     this.store.subscribe((_s, c) => {
       if (c.has('history') || c.has('doc')) { this.lastDoc = null; this.dirtyFlag = true; }
       if (c.has('reach') || c.has('issues')) { this.overlay.markAllDirty(); this.dirtyFlag = true; }
-      if (c.has('viewVersion')) this.dirtyFlag = true;
+      if (c.has('viewVersion') || c.has('previewCells') || c.has('selection')) this.dirtyFlag = true;
       this.requestFrame();
     });
-    this.requestFrame();
   }
 
   requestFrame(): void { if (this.rafId === null) this.rafId = requestAnimationFrame(() => this.frame()); }
@@ -192,6 +191,23 @@ private drawObjects(doc: StageDocument): void {
         this.ctx.textAlign = 'right';
         for (let y = 0; y < map.height; y += 5) this.ctx.fillText(String(map.height - 1 - y), px - 6, py + (y + 0.5) * S + 4);
       }
+    }
+    // 도구 프리뷰 (SDD-09 §9-2: 합성 단계에서 그린다)
+    if (state.previewCells.length > 0) {
+      this.ctx.fillStyle = UI.brushPreview;
+      for (const c of state.previewCells) {
+        const sx = px + c.x * S, sy = py + (map.height - 1 - c.y) * S;
+        this.ctx.fillRect(sx, sy, S, S);
+      }
+    }
+    // 선택 영역 (SDD-09 §7-2)
+    if (state.selection.kind === 'cells') {
+      const sx0 = px + state.selection.x0 * S, sy0 = py + (map.height - 1 - state.selection.y1) * S;
+      const sw = (state.selection.x1 - state.selection.x0 + 1) * S, sh = (state.selection.y1 - state.selection.y0 + 1) * S;
+      this.ctx.strokeStyle = UI.selection; this.ctx.lineWidth = 2 / this.view.zoom;
+      this.ctx.setLineDash([4 / this.view.zoom, 4 / this.view.zoom]);
+      this.ctx.strokeRect(sx0, sy0, sw, sh);
+      this.ctx.setLineDash([]);
     }
   }
 }

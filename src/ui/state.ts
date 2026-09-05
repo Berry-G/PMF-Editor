@@ -5,7 +5,7 @@
  * 바꾸면 안 되는 것: update() 가 얕은 병합을 하는 것. dispatch() 가 history.push 후 update() 하는 것.
  * 근거: SDD-01 §3 [D-01-03], SDD-08 §10 [D-08-10]
  */
-import type { StageDocument } from '../core/model/stage.js';
+import type { StageDocument, XY } from '../core/model/stage.js';
 import { History } from '../core/commands/command.js';
 import type { Issue, ValidateContext } from '../core/validate/index.js';
 import { validate } from '../core/validate/index.js';
@@ -38,6 +38,8 @@ export interface EditorState {
   simStale: boolean;
   fileName: string;
   catalog: readonly EnemyCatalogEntry[];
+  /** 도구 프리뷰 — 합성 단계에서 격자 위에 투명 사각형으로 그린다. */
+  previewCells: readonly XY[];
 }
 
 export type StoreListener = (state: EditorState, changed: ReadonlySet<keyof EditorState>) => void;
@@ -61,6 +63,7 @@ export class Store {
       layers: defaultLayers(), showGrid: true, viewVersion: 0,
       issues, reach, sim: null, simStale: false,
       fileName: 'untitled', catalog: DEFAULT_CATALOG,
+      previewCells: [],
     };
   }
 
