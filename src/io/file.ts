@@ -47,7 +47,7 @@ export async function openFile(): Promise<OpenedFile | null> {
 }
 
 export async function saveFile(text: string, handle: FileSystemFileHandle | null, suggestedName: string): Promise<FileSystemFileHandle | null> {
-  if (handle && typeof (handle as any).createWritable === 'function') { // 편차: TS 가 createWritable 을 모르므로 as any 가 불가피
+  if (handle && typeof handle.createWritable === 'function') {
     try { const w = await handle.createWritable(); await w.write(text); await w.close(); return handle; }
     catch { /* fall through */ }
   }

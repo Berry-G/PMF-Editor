@@ -70,8 +70,9 @@ export class Store {
     const patch = fn(this.state);
     const changed = new Set<keyof EditorState>();
     for (const key of Object.keys(patch) as (keyof EditorState)[]) {
-      if ((this.state as any)[key] !== patch[key]) { changed.add(key); (this.state as any)[key] = patch[key]; }
+      if (this.state[key] !== patch[key]) { changed.add(key); }
     }
+    Object.assign(this.state, patch);
     if (changed.has('doc') || changed.has('history')) this.scheduleValidation();
     if (changed.size > 0) { for (const f of this.listeners) f(this.state, changed); }
   }
@@ -79,7 +80,7 @@ export class Store {
   /** View 가 바뀌었을 때 호출. viewVersion 을 올려 구독자에 알린다. */
   notifyViewChanged(): void {
     this.state.viewVersion++;
-    for (const f of this.listeners) f(this.state, new Set(['viewVersion'] as any));
+    for (const f of this.listeners) f(this.state, new Set<keyof EditorState>(['viewVersion']));
   }
 
   dispatch(cmd: Command): void { this.state.history.push(cmd); this.update(s => ({ doc: s.history.doc, simStale: s.sim !== null })); }

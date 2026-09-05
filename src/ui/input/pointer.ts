@@ -36,6 +36,6 @@ export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View
     if (panning) { view.panX = panStartPX + (e.clientX - panStartX); view.panY = panStartPY + (e.clientY - panStartY); store.notifyViewChanged(); return; }
     if (currentTool) { currentTool.onMove(pi(e), ctx); } else { status.setCell(pi(e).cell.x, pi(e).cell.y); }
   };
-  canvas.onmouseup = () => { if (currentTool) { currentTool.onUp(pi as any, ctx); currentTool = null; } panning = false; };
+  canvas.onmouseup = (e) => { if (currentTool) { currentTool.onUp(pi(e), ctx); currentTool = null; } panning = false; };
   canvas.onmouseleave = () => { if (currentTool) { currentTool.onCancel(ctx); currentTool = null; } panning = false; };
 }
