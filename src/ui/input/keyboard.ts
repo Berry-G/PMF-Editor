@@ -19,7 +19,9 @@ export function mountKeyboard(store: Store, view: View): void {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (e.ctrlKey && e.key === 'z') { e.preventDefault(); if (e.shiftKey) store.state.history.redo(); else store.state.history.undo(); store.update((_s) => ({ doc: store.state.history.doc })); return; }
     if (e.ctrlKey && e.key === 'y') { e.preventDefault(); store.state.history.redo(); store.update((_s) => ({ doc: store.state.history.doc })); return; }
-    if (e.ctrlKey && (e.key === 's' || e.key === 'o')) { e.preventDefault(); return; }
+    if (e.ctrlKey && e.key === 's') { e.preventDefault(); dispatchEvent(new Event('pmf-save')); return; }
+    if (e.ctrlKey && e.key === 'o') { e.preventDefault(); dispatchEvent(new Event('pmf-open')); return; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dispatchEvent(new Event('pmf-copy-toon')); return; }
     if (e.ctrlKey && e.key === '0') { e.preventDefault(); view.zoom = 1; view.panX = 0; view.panY = 0; store.notifyViewChanged(); return; }
     if (e.ctrlKey && e.key === '1') { e.preventDefault(); view.zoom = 1; store.notifyViewChanged(); return; }
     const n = Number(e.key);

@@ -17,6 +17,10 @@ import { mountLayers } from './ui/panels/layers.js';
 import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
 import { mountKeyboard } from './ui/input/keyboard.js';
+import { decode } from './core/toon/decode.js';
+import { encode } from './core/toon/encode.js';
+import { TOOL_VERSION } from './core/version.js';
+import { saveDraft, loadDraft, clearDraft } from './io/draft.js';
 
 function need<T extends Element>(s: string): T {
   const el = document.querySelector<T>(s);
@@ -28,6 +32,19 @@ function main(): void {
   const seed = loadSeed();
   const store = new Store(seed);
   const view = new View();
+
+  // 초안 복구
+  const draft = loadDraft();
+  if (draft) {
+    const decoded = decode(draft.text);
+    if (decoded.ok && confirm('「' + draft.name + '」의 저장되지 않은 작업이 있습니다. 복구할까요?')) {
+      store.state.history.replace(decoded.value);
+      store.update((_s) => ({ doc: store.state.history.doc, fileName: draft.name }));
+    } else {
+      clearDraft();
+    }
+  }
+
   const wrap = need<HTMLElement>('#canvas-wrap');
   const canvas = need<HTMLCanvasElement>('#canvas');
   const dpr = window.devicePixelRatio;
@@ -48,5 +65,24 @@ function main(): void {
   const status = new StatusBar(need<HTMLElement>('#statusbar'), store, view);
   mountPointer(canvas, store, view, status);
   mountKeyboard(store, view);
+
+  // beforeunload: dirty 확인
+  window.addEventListener('beforeunload', (e) => {
+    if (store.state.history.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // 5초 디바운스 초안 저장 (SDD-09 §11)
+  let draftTimer: ReturnType<typeof setTimeout> | null = null;
+  store.subscribe((state) => {
+    if (state.history.dirty && !state.history.canUndo && !state.history.canRedo) return; // 저장 직후 무시
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => {
+      draftTimer = null;
+      if (state.history.dirty) {
+        const text = encode(state.history.doc, { toolVersion: TOOL_VERSION, issues: state.issues });
+        saveDraft(text, state.fileName);
+      }
+    }, 5000);
+  });
 }
 main();
