@@ -1,7 +1,9 @@
 /**
  * 목적: 하단 탭 4개 — 맵/경로/스폰/밸런스. SDD-03 §6.
  * 왜 이 구조인가: 각 탭은 setField 커맨드로 dispatch. 숫자 입력은 blur 에서 한 번 확정.
- * 바꾸면 안 되는 것: blur/Enter 커맨드 확정 패턴. 키 한 번마다 히스토리에 쌓이지 않게 blur 로 한 번에 확정.
+ *   store.subscribe 로 문서 변경을 따라간다. 단, 편집 중인 입력칸(document.activeElement)은
+ *   덮어쓰지 않는다.
+ * 바꾸면 안 되는 것: blur/Enter 커맨드 확정 패턴. fld 의 p 가 FieldPath 로 고정 — `as` 캐스트 금지.
  * 근거: SDD-03 §6 [D-03-06]
  */
 import type { Store } from '../state.js';
@@ -9,17 +11,17 @@ import { UI } from '../../core/palette.js';
 import { setField, type FieldPath } from '../../core/commands/fields.js';
 
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
-  const fld = (p: string, v: number | boolean, min: number, max: number) => {
+  const fld = (p: FieldPath, v: number | boolean, min: number, max: number) => {
     const lb = document.createElement('label'); lb.style.display = 'block';
     if (typeof v === 'boolean') {
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = v;
-      cb.onchange = () => store.dispatch(setField(p as FieldPath, cb.checked));
+      cb.onchange = () => store.dispatch(setField(p, cb.checked));
       lb.append(cb, ' ' + p.split('.').pop()!); body.append(lb); return;
     }
     lb.textContent = p.split('.').pop()! + ' ';
     const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(v);
     inp.style.width = '60px';
-    inp.onblur = () => { const n = Number(inp.value); if (!isNaN(n)) store.dispatch(setField(p as FieldPath, Math.max(min, Math.min(max, n)))); };
+    inp.onblur = () => { const n = Number(inp.value); if (!isNaN(n)) store.dispatch(setField(p, Math.max(min, Math.min(max, n)))); };
     inp.oninput = () => { inp.style.borderColor = (Number(inp.value) < min || Number(inp.value) > max) ? UI.error : ''; };
     lb.append(inp); body.append(lb);
   };
@@ -70,4 +72,13 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
     nav.append(btn);
   }
   render(active);
+
+  // store.subscribe: 편집 중인 칸(document.activeElement)은 건너뛰고 다시 그린다
+  store.subscribe((_state, changed) => {
+    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues')) return;
+    // activeElement 가 우리가 만든 입력칸이면 그 칸만 보존
+    const ae = document.activeElement;
+    if (ae && ae.tagName === 'INPUT' && body.contains(ae)) return;
+    render(active);
+  });
 }

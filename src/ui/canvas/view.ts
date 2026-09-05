@@ -32,4 +32,10 @@ export class View {
     this.panX = (vw - map.width * S * this.zoom) / 2;
     this.panY = (vh - map.height * S * this.zoom) / 2;
   }
+  /** 셀 좌표가 뷰포트 중앙에 오도록 pan 을 설정한다. 줌은 유지. */
+  centerOnCell(cx: number, cy: number, map: MapData, vw: number, vh: number): void {
+    const S = CELL_PX * this.zoom;
+    this.panX = vw / 2 - cx * S;
+    this.panY = vh / 2 - (map.height - 1 - cy) * S;
+  }
 }
