@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { FIELD_PATHS, setField } from '../../core/commands/fields.js';
-import { EXPOSED_FIELDS } from './tabs.js';
+import { EXPOSED_FIELDS, formatPlayTime, tabFieldValues } from './tabs.js';
 import { Store } from '../state.js';
 import { createEmptyStage } from '../../core/model/factory.js';
 
@@ -18,42 +18,47 @@ describe('탭 필드 커버리지', () => {
     expect(EXPOSED_FIELDS.length).toBeGreaterThanOrEqual(27);
   });
 
-  it('문서가 바뀌면 탭이 읽는 값도 바뀐다 (F-1 회귀 테스트)', () => {
+  it('render 가 doc 을 따라간다 — tabFieldValues 순수 함수 검증 (M-2 회귀 테스트)', () => {
     const doc = createEmptyStage('test', 10, 10);
     const store = new Store(doc);
-    // 각 필드를 dispatch 하고 doc 값을 읽어 바뀌었는지 확인
-    const checks: Array<{ path: typeof FIELD_PATHS[number]; set: number | boolean | string; get: (d: typeof doc) => unknown }> = [
-      { path: 'escortee.speed', set: 0.5, get: d => d.escortee.speed },
-      { path: 'escortee.maxHealth', set: 200, get: d => d.escortee.maxHealth },
-      { path: 'mother.speed', set: 0.3, get: d => d.mother.speed },
-      { path: 'mother.spawnDelay', set: 10, get: d => d.mother.spawnDelay },
-      { path: 'mother.followsPath', set: false, get: d => d.mother.followsPath },
-      { path: 'spawn.volleyCount', set: 8, get: d => d.spawn.volleyCount },
-      { path: 'spawn.volleySpacing', set: 0.5, get: d => d.spawn.volleySpacing },
-      { path: 'spawn.restSeconds', set: 5, get: d => d.spawn.restSeconds },
-      { path: 'spawn.telegraphSeconds', set: 1, get: d => d.spawn.telegraphSeconds },
-      { path: 'burst.duration', set: 15, get: d => d.burst.duration },
-      { path: 'burst.volleyCount', set: 8, get: d => d.burst.volleyCount },
-      { path: 'burst.restSeconds', set: 3, get: d => d.burst.restSeconds },
-      { path: 'burst.recoverySpeedMultiplier', set: 1.5, get: d => d.burst.recoverySpeedMultiplier },
-      { path: 'burst.recoverySeconds', set: 5, get: d => d.burst.recoverySeconds },
-      { path: 'economy.startingResource', set: 200, get: d => d.economy.startingResource },
-      { path: 'economy.shortcutCost', set: 100, get: d => d.economy.shortcutCost },
-      { path: 'presentation.uiSlowMotionScale', set: 0.5, get: d => d.presentation.uiSlowMotionScale },
-      { path: 'presentation.shotLineSeconds', set: 0.1, get: d => d.presentation.shotLineSeconds },
-      { path: 'presentation.magicMissileSpeed', set: 10, get: d => d.presentation.magicMissileSpeed },
-      { path: 'presentation.hitFlashSeconds', set: 0.1, get: d => d.presentation.hitFlashSeconds },
-      { path: 'presentation.debrisCount', set: 10, get: d => d.presentation.debrisCount },
-      { path: 'presentation.debrisSeconds', set: 1, get: d => d.presentation.debrisSeconds },
-      { path: 'presentation.healthBarHideWhenFull', set: false, get: d => d.presentation.healthBarHideWhenFull },
-      { path: 'presentation.masterVolume', set: 0.5, get: d => d.presentation.masterVolume },
-      { path: 'toggles.alliesCanDieWhileMarching', set: true, get: d => d.toggles.alliesCanDieWhileMarching },
-      { path: 'toggles.enemiesTargetAllies', set: true, get: d => d.toggles.enemiesTargetAllies },
-      { path: 'name', set: 'newname', get: d => d.name },
+    const checks: Array<{ path: typeof FIELD_PATHS[number]; set: number | boolean | string }> = [
+      { path: 'escortee.speed', set: 0.5 },
+      { path: 'escortee.maxHealth', set: 200 },
+      { path: 'mother.speed', set: 0.3 },
+      { path: 'mother.spawnDelay', set: 10 },
+      { path: 'mother.followsPath', set: false },
+      { path: 'spawn.volleyCount', set: 8 },
+      { path: 'spawn.volleySpacing', set: 0.5 },
+      { path: 'spawn.restSeconds', set: 5 },
+      { path: 'spawn.telegraphSeconds', set: 1 },
+      { path: 'burst.duration', set: 15 },
+      { path: 'burst.volleyCount', set: 8 },
+      { path: 'burst.restSeconds', set: 3 },
+      { path: 'burst.recoverySpeedMultiplier', set: 1.5 },
+      { path: 'burst.recoverySeconds', set: 5 },
+      { path: 'economy.startingResource', set: 200 },
+      { path: 'economy.shortcutCost', set: 100 },
+      { path: 'presentation.uiSlowMotionScale', set: 0.5 },
+      { path: 'presentation.shotLineSeconds', set: 0.1 },
+      { path: 'presentation.magicMissileSpeed', set: 10 },
+      { path: 'presentation.hitFlashSeconds', set: 0.1 },
+      { path: 'presentation.debrisCount', set: 10 },
+      { path: 'presentation.debrisSeconds', set: 1 },
+      { path: 'presentation.healthBarHideWhenFull', set: false },
+      { path: 'presentation.masterVolume', set: 0.5 },
+      { path: 'toggles.alliesCanDieWhileMarching', set: true },
+      { path: 'toggles.enemiesTargetAllies', set: true },
+      { path: 'name', set: 'newname' },
     ];
-    for (const { path, set: val, get } of checks) {
+    for (const { path, set: val } of checks) {
       store.dispatch(setField(path, val));
-      expect(get(store.state.history.doc)).toBe(val);
+      expect(tabFieldValues(store.state.history.doc)[path]).toBe(val);
     }
+  });
+
+  it('formatPlayTime 포맷 (M-1 회귀 테스트)', () => {
+    expect(formatPlayTime(0, 119.067)).toBe('0.0 / 119.1초');
+    expect(formatPlayTime(50, 119.067)).toBe('50.0 / 119.1초');
+    expect(formatPlayTime(119.067, 119.067)).toBe('119.1 / 119.1초');
   });
 });

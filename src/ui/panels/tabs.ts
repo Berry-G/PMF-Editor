@@ -33,6 +33,27 @@ export const EXPOSED_FIELDS: readonly FieldPath[] = [
 /** 'mother.followsPath' → 'followsPath'. 점이 없으면 그대로 반환. I-3 로 pop()! 제거 대상. */
 const leaf = (p: string): string => p.slice(p.lastIndexOf('.') + 1);
 
+/** 재생 시간 포맷. M-1 회귀 테스트로 분리. */
+export function formatPlayTime(cur: number, total: number): string {
+  return cur.toFixed(1) + ' / ' + total.toFixed(1) + '초';
+}
+
+/** 탭이 화면에 표시하는 필드값들을 한 객체로 반환. M-2 회귀 테스트용. */
+export function tabFieldValues(doc: import('../../core/model/stage.js').StageDocument): Record<string, number | boolean | string> {
+  return {
+    name: doc.name,
+    'escortee.speed': doc.escortee.speed, 'escortee.maxHealth': doc.escortee.maxHealth,
+    'mother.speed': doc.mother.speed, 'mother.spawnDelay': doc.mother.spawnDelay, 'mother.followsPath': doc.mother.followsPath,
+    'spawn.volleyCount': doc.spawn.volleyCount, 'spawn.volleySpacing': doc.spawn.volleySpacing, 'spawn.restSeconds': doc.spawn.restSeconds, 'spawn.telegraphSeconds': doc.spawn.telegraphSeconds,
+    'burst.duration': doc.burst.duration, 'burst.volleyCount': doc.burst.volleyCount, 'burst.restSeconds': doc.burst.restSeconds, 'burst.recoverySpeedMultiplier': doc.burst.recoverySpeedMultiplier, 'burst.recoverySeconds': doc.burst.recoverySeconds,
+    'economy.startingResource': doc.economy.startingResource, 'economy.shortcutCost': doc.economy.shortcutCost,
+    'presentation.uiSlowMotionScale': doc.presentation.uiSlowMotionScale, 'presentation.shotLineSeconds': doc.presentation.shotLineSeconds, 'presentation.magicMissileSpeed': doc.presentation.magicMissileSpeed,
+    'presentation.hitFlashSeconds': doc.presentation.hitFlashSeconds, 'presentation.debrisCount': doc.presentation.debrisCount, 'presentation.debrisSeconds': doc.presentation.debrisSeconds,
+    'presentation.healthBarHideWhenFull': doc.presentation.healthBarHideWhenFull, 'presentation.masterVolume': doc.presentation.masterVolume,
+    'toggles.alliesCanDieWhileMarching': doc.toggles.alliesCanDieWhileMarching, 'toggles.enemiesTargetAllies': doc.toggles.enemiesTargetAllies,
+  };
+}
+
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
   const fld = (p: FieldPath, v: number | boolean, min: number, max: number) => {
     const lb = document.createElement('label'); lb.style.display = 'block';
@@ -271,11 +292,11 @@ else if (id === 'balance') {
           // 재생 컨트롤
           section('재생');
           const playSec = document.createElement('span'); playSec.style.cssText = 'font-size:12px;color:' + UI.textDim;
-          const updatePlay = () => { playSec.textContent = store.state.simPlayTime.toFixed(1) + ' / ' + r.stageSeconds.toFixed(1) + '초'; };
           const playBtn = document.createElement('button'); playBtn.textContent = '▶';
           const stopBtn = document.createElement('button'); stopBtn.textContent = '⏹';
           const scrub = document.createElement('input'); scrub.type = 'range'; scrub.min = '0'; scrub.max = String(r.stageSeconds); scrub.step = '0.1'; scrub.style.width = '200px';
-          scrub.oninput = () => { store.update((_s) => ({ simPlayTime: Number(scrub.value) })); };
+          const updatePlay = () => { playSec.textContent = formatPlayTime(store.state.simPlayTime, r.stageSeconds); };
+          scrub.oninput = () => { store.update((_s) => ({ simPlayTime: Number(scrub.value) })); updatePlay(); };
           playBtn.onclick = () => {
             if (store.state.simPlaying) { store.update((_s) => ({ simPlaying: false })); playBtn.textContent = '▶'; return; }
             store.update((_s) => ({ simPlaying: true })); playBtn.textContent = '⏸';
@@ -286,12 +307,15 @@ else if (id === 'balance') {
               const now = performance.now(); const dt = ((now - last) / 1000) * speed; last = now;
               const nt = Math.min(store.state.simPlayTime + dt, r.stageSeconds);
               store.update((_s) => ({ simPlayTime: nt }));
+              // DOM 직접 갱신 — render() 재호출 금지
+              playSec.textContent = formatPlayTime(nt, r.stageSeconds);
+              scrub.value = String(nt);
               if (nt >= r.stageSeconds) { store.update((_s) => ({ simPlaying: false })); playBtn.textContent = '▶'; return; }
               requestAnimationFrame(tick);
             };
             requestAnimationFrame(tick);
           };
-          stopBtn.onclick = () => { store.update((_s) => ({ simPlaying: false, simPlayTime: 0 })); playBtn.textContent = '▶'; };
+          stopBtn.onclick = () => { store.update((_s) => ({ simPlaying: false, simPlayTime: 0 })); playBtn.textContent = '▶'; updatePlay(); };
           const ctrlRow = document.createElement('div'); ctrlRow.style.fontSize = '12px';
           ctrlRow.append(playBtn, stopBtn, ' ', scrub, ' ', playSec); body.append(ctrlRow);
           updatePlay();
@@ -316,7 +340,7 @@ else if (id === 'balance') {
   render(active);
 
   store.subscribe((_state, changed) => {
-    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues') && !changed.has('sim') && !changed.has('simStale')) return;
+    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues') && !changed.has('sim') && !changed.has('simStale') && !changed.has('simPlayTime') && !changed.has('simPlaying')) return;
     render(active);
   });
 }
