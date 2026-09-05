@@ -55,21 +55,7 @@ export function tabFieldValues(doc: import('../../core/model/stage.js').StageDoc
 }
 
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
-  const fld = (p: FieldPath, v: number | boolean, min: number, max: number) => {
-    const lb = document.createElement('label'); lb.style.display = 'block';
-    if (typeof v === 'boolean') {
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = v;
-      cb.dataset.path = p;
-      cb.onchange = () => store.dispatch(setField(p, cb.checked));
-      lb.append(cb, ' ' + leaf(p)); body.append(lb); return;
-    }
-    lb.textContent = leaf(p) + ' ';
-    const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(v);
-    inp.style.width = '60px'; inp.dataset.path = p;
-    inp.onblur = () => { const n = Number(inp.value); if (!isNaN(n)) store.dispatch(setField(p, Math.max(min, Math.min(max, n)))); };
-    inp.oninput = () => { inp.style.borderColor = (Number(inp.value) < min || Number(inp.value) > max) ? UI.error : ''; };
-    lb.append(inp); body.append(lb);
-  };
+  // fld 는 render 안에서 정의됨 (V = tabFieldValues(d) 이후, M-2/P-3).
   const section = (title: string) => {
     const s = document.createElement('div'); s.style.margin = '4px 0';
     const h = document.createElement('strong'); h.textContent = title; h.style.fontSize = '12px';
@@ -88,6 +74,25 @@ export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): vo
     }
 body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padding:4px';
     const d = store.state.history.doc;
+    const V = tabFieldValues(d);
+
+    // fld: V[p] 에서 값을 읽어 입력요소 생성. M-2/P-3: render 와 테스트가 같은 tabFieldValues 를 쓴다.
+    const fld = (p: FieldPath, _v: number | boolean, min: number, max: number) => {
+      const v = V[p] as number | boolean;
+      const lb = document.createElement('label'); lb.style.display = 'block';
+      if (typeof v === 'boolean') {
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = v;
+        cb.dataset.path = p;
+        cb.onchange = () => store.dispatch(setField(p, cb.checked));
+        lb.append(cb, ' ' + leaf(p)); body.append(lb); return;
+      }
+      lb.textContent = leaf(p) + ' ';
+      const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(v);
+      inp.style.width = '60px'; inp.dataset.path = p;
+      inp.onblur = () => { const n = Number(inp.value); if (!isNaN(n)) store.dispatch(setField(p, Math.max(min, Math.min(max, n)))); };
+      inp.oninput = () => { inp.style.borderColor = (Number(inp.value) < min || Number(inp.value) > max) ? UI.error : ''; };
+      lb.append(inp); body.append(lb);
+    };
 
     if (id === 'map') {
       section('맵');
