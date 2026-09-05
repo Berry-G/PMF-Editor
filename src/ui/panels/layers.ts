@@ -23,8 +23,8 @@ export function mountLayers(store: Store, container: HTMLElement): void {
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.onchange = () => {
-      if (id === 'grid') store.update(s => ({ view: { ...s.view, showGrid: cb.checked } }));
-      else store.update(s => ({ view: { ...s.view, layers: { ...s.view.layers, [id]: cb.checked } } }));
+      if (id === 'grid') store.update((_s) => ({ showGrid: cb.checked }));
+      else store.update((_s) => ({ layers: { ..._s.layers, [id]: cb.checked } }));
     };
     row.append(cb);
     const span = document.createElement('span');
@@ -36,8 +36,10 @@ export function mountLayers(store: Store, container: HTMLElement): void {
     const inputs = container.querySelectorAll('input[type=checkbox]');
     LAYER_ITEMS.forEach((item, i) => {
       const input = inputs[i] as HTMLInputElement;
-      if (item.id === 'grid') input.checked = state.view.showGrid;
-      else input.checked = state.view.layers[item.id as LayerId];
+      if (item.id === 'grid') input.checked = state.showGrid;
+      else input.checked = state.layers[item.id as LayerId];
     });
   });
 }
+
+

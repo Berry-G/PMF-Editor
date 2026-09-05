@@ -12,7 +12,7 @@ import { Cell } from '../../core/model/cell.js';
 import { cellAt } from '../../core/model/map.js';
 import { View } from './view.js';
 import { LayerCanvas } from './layer.js';
-import type { MapData } from '../../core/model/stage.js';
+import type { MapData, PathNode, StageDocument } from '../../core/model/stage.js';
 import type { Issue } from '../../core/validate/index.js';
 import type { Reachability } from '../../core/geometry/reach.js';
 
@@ -27,7 +27,7 @@ export class Renderer {
   private objects: LayerCanvas;
   private rafId: number | null = null;
   private dirtyFlag = false;
-  private lastDoc: any = null;
+  private lastDoc: StageDocument | null = null;
 
   constructor(target: HTMLCanvasElement, store: Store, view: View) {
     this.view = view; this.store = store;
@@ -43,7 +43,7 @@ export class Renderer {
     this.store.subscribe((_s, c) => {
       if (c.has('history') || c.has('doc')) { this.lastDoc = null; this.dirtyFlag = true; }
       if (c.has('reach') || c.has('issues')) { this.overlay.markAllDirty(); this.dirtyFlag = true; }
-      if (c.has('view')) this.dirtyFlag = true;
+      if (c.has('viewVersion')) this.dirtyFlag = true;
       this.requestFrame();
     });
     this.requestFrame();
@@ -114,14 +114,14 @@ export class Renderer {
     for (let i = -h; i < w + h; i += 4) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + h, y + h); ctx.stroke(); }
     ctx.restore();
   }
-private drawObjects(doc: any): void {
+private drawObjects(doc: StageDocument): void {
     const d = this.objects.takeDirty(); if (d === null) return;
     const ctx = this.objects.ctx2d; const h = doc.map.height; const w = doc.map.width;
     const { nodes, edges } = doc.path;
     ctx.clearRect(0, 0, w * CELL, h * CELL);
     for (const e of edges) {
-      const fn = nodes.find((n: any) => n.id === e.from);
-      const tn = nodes.find((n: any) => n.id === e.to);
+      const fn = nodes.find((n: PathNode) => n.id === e.from);
+      const tn = nodes.find((n: PathNode) => n.id === e.to);
       if (!fn || !tn) continue;
       const x1 = fn.x * CELL + CELL / 2, y1 = (h - 1 - fn.y) * CELL + CELL / 2;
       const x2 = tn.x * CELL + CELL / 2, y2 = (h - 1 - tn.y) * CELL + CELL / 2;
@@ -152,14 +152,14 @@ private drawObjects(doc: any): void {
         ctx.fillStyle = ACTOR.village; ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
       }
     }
-    const sn = nodes.find((n: any) => n.role === 'start');
+    const sn = nodes.find((n: PathNode) => n.role === "start");
     if (sn) {
       const cx = sn.x * CELL + CELL / 2, cy = (h - 1 - sn.y) * CELL + CELL / 2;
       const es = CELL * ACTOR_SCALE.escortee / 2, ms = CELL * ACTOR_SCALE.mother / 2;
       ctx.fillStyle = ACTOR.escortee; ctx.beginPath(); ctx.arc(cx, cy, es, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = ACTOR.mother; ctx.fillRect(cx + 4, cy + 4, ms * 2, ms * 2);
     }
-    const en = nodes.find((n: any) => n.role === 'exit');
+    const en = nodes.find((n: PathNode) => n.role === "exit");
     if (en) {
       const cx = en.x * CELL + CELL / 2, cy = (h - 1 - en.y) * CELL + CELL / 2, r = CELL * 0.55;
       ctx.strokeStyle = ACTOR.exit; ctx.lineWidth = CELL * 0.08;
@@ -172,14 +172,14 @@ private drawObjects(doc: any): void {
     const dpr = window.devicePixelRatio;
     const vw = this.ctx.canvas.width / dpr, vh = this.ctx.canvas.height / dpr;
     const S = CELL * this.view.zoom, px = this.view.panX, py = this.view.panY;
-    const layers = state.view.layers;
+    const layers = state.layers;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.fillStyle = BACKGROUND; this.ctx.fillRect(0, 0, vw, vh);
     if (layers.tiles) this.ctx.drawImage(this.tiles.canvas, px, py, map.width * S, map.height * S);
     if (layers.reach || layers.issues) this.ctx.drawImage(this.overlay.canvas, px, py, map.width * S, map.height * S);
     if (layers.path || layers.objects) this.ctx.drawImage(this.objects.canvas, px, py, map.width * S, map.height * S);
-    if (state.view.showGrid && S >= 8) {
+    if (state.showGrid && S >= 8) {
       this.ctx.strokeStyle = UI.grid; this.ctx.lineWidth = 1;
       for (let x = 0; x <= map.width; x++) { this.ctx.beginPath(); this.ctx.moveTo(px + x * S, py); this.ctx.lineTo(px + x * S, py + map.height * S); this.ctx.stroke(); }
       for (let y = 0; y <= map.height; y++) { this.ctx.beginPath(); this.ctx.moveTo(px, py + y * S); this.ctx.lineTo(px + map.width * S, py + y * S); this.ctx.stroke(); }
@@ -195,4 +195,8 @@ private drawObjects(doc: any): void {
     }
   }
 }
+
+
+
+
 

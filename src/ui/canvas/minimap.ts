@@ -6,7 +6,7 @@
  * 근거: SDD-03 §4 [D-03-04], SDD-09 §9-4 [D-09-09-4]
  */
 import type { Store } from '../state.js';
-import { CELL_PX, BACKGROUND } from '../../core/palette.js';
+import { CELL_PX, BACKGROUND, COLOR } from '../../core/palette.js';
 import { View } from '../canvas/view.js';
 
 const MINIMAP_W = 200;
@@ -54,7 +54,7 @@ export class Minimap {
     const cy = Math.round((1 - my) * map.height);
     this.view.panX = -(cx * CELL_PX * this.view.zoom - this.ctx.canvas.width / 2);
     this.view.panY = -(cy * CELL_PX * this.view.zoom - this.ctx.canvas.height / 2);
-    this.store.update(() => ({ view: { ...this.store.state.view } }));
+    this.store.notifyViewChanged();
   }
 
   draw(): void {
@@ -80,7 +80,7 @@ export class Minimap {
       for (let x = 0; x < map.width; x++) {
         const cell = map.cells[y * map.width + x]!;
         if (cell === 255) continue; // Empty
-        this.ctx.fillStyle = /* CELL 색 */ (cell === 0 ? '#1A1A1F' : cell === 1 ? '#3D3D45' : cell === 2 ? '#BD9966' : cell === 3 ? '#598CA6' : cell === 4 ? '#40994D' : cell === 5 ? '#214780' : '#141419');
+        this.ctx.fillStyle = COLOR[cell as keyof typeof COLOR] ?? BACKGROUND;
         this.ctx.fillRect(ox + x * cellSize, oy + (map.height - 1 - y) * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
       }
     }
@@ -104,3 +104,6 @@ export class Minimap {
     this.ctx.strokeRect(ox + vx0 * cellSize, oy + (map.height - 1 - (vy0 - vh + 1)) * cellSize, vw * cellSize, vh * cellSize);
   }
 }
+
+
+

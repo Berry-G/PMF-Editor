@@ -24,7 +24,7 @@ export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
     view.zoomAt(e.offsetX, e.offsetY, factor);
-    store.update(() => ({ view: { ...store.state.view } }));
+    store.notifyViewChanged();
   };
 
   canvas.onmousedown = (e) => {
@@ -47,7 +47,7 @@ export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View
     if (panning) {
       view.panX = panStartPX + (e.clientX - panStartX);
       view.panY = panStartPY + (e.clientY - panStartY);
-      store.update(() => ({ view: { ...store.state.view } }));
+      store.notifyViewChanged();
       return;
     }
     const map = store.state.history.doc.map;

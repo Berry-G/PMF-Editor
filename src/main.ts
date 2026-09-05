@@ -39,7 +39,7 @@ function main(): void {
     canvas.style.width = vw + 'px';
     canvas.style.height = vh + 'px';
     view.fitToMap(seed.map, vw, vh);
-    store.update(() => ({ view: { ...store.state.view } }));
+    store.notifyViewChanged();
   };
   new ResizeObserver(resize).observe(wrap);
   resize();
@@ -49,7 +49,7 @@ function main(): void {
   mountPalette(store, need<HTMLElement>('#palette'));
   mountLayers(store, need<HTMLElement>('#layers'));
   new Minimap(need<HTMLCanvasElement>('#minimap-canvas'), store, view);
-  const status = new StatusBar(need<HTMLElement>('#statusbar'), store);
+  const status = new StatusBar(need<HTMLElement>('#statusbar'), store, view);
   mountPointer(canvas, store, view, status);
 }
 
