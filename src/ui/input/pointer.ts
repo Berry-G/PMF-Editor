@@ -15,6 +15,9 @@ import { RectTool } from './tools/rect.js';
 import { FillTool } from './tools/fill.js';
 import { SelectTool } from './tools/select.js';
 import { EyedropperTool } from './tools/eyedropper.js';
+import { NodeTool } from './tools/node.js';
+import { EdgeTool } from './tools/edge.js';
+import { ObjectTool } from './tools/object.js';
 import type { Tool, PointerInfo, ToolContext } from './tools/tool.js';
 
 const TOOLS: Partial<Record<ToolId, Tool>> = {
@@ -24,6 +27,9 @@ const TOOLS: Partial<Record<ToolId, Tool>> = {
   fill: new FillTool(),
   select: new SelectTool(),
   eyedropper: new EyedropperTool(),
+  node: new NodeTool(),
+  edge: new EdgeTool(),
+  object: new ObjectTool(),
 };
 
 export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View, status: StatusBar): void {
@@ -62,5 +68,10 @@ export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View
   window.addEventListener('pmf-copy', () => { if (selectTool) selectTool.copySelection(ctx); });
   window.addEventListener('pmf-cut', () => { if (selectTool) selectTool.cutSelection(ctx); });
   window.addEventListener('pmf-paste', () => { if (selectTool) selectTool.startPaste(ctx); });
-  window.addEventListener('pmf-delete', () => { if (selectTool) selectTool.deleteSelection(ctx); });
+  window.addEventListener('pmf-delete', () => {
+    if (selectTool) selectTool.deleteSelection(ctx);
+    const { tool } = store.state;
+    if (tool === 'node') { const nt = TOOLS.node as NodeTool; if (nt) nt.deleteSelected(ctx); }
+    if (tool === 'edge') { const et = TOOLS.edge as EdgeTool; if (et) et.deleteSelected(ctx); }
+  });
 }
