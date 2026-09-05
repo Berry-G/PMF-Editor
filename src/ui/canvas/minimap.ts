@@ -80,7 +80,7 @@ export class Minimap {
       for (let x = 0; x < map.width; x++) {
         const cell = map.cells[y * map.width + x]!;
         if (cell === 255) continue; // Empty
-        this.ctx.fillStyle = '#FF0000';
+        this.ctx.fillStyle = COLOR[cell as keyof typeof COLOR] ?? BACKGROUND;
         this.ctx.fillRect(ox + x * cellSize, oy + (map.height - 1 - y) * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
       }
     }

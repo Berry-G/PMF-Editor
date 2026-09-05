@@ -22,6 +22,14 @@ export function mountKeyboard(store: Store, view: View): void {
     if (e.ctrlKey && e.key === 's') { e.preventDefault(); dispatchEvent(new Event('pmf-save')); return; }
     if (e.ctrlKey && e.key === 'o') { e.preventDefault(); dispatchEvent(new Event('pmf-open')); return; }
     if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dispatchEvent(new Event('pmf-copy-toon')); return; }
+    // Ctrl+C: 선택 복사
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); dispatchEvent(new Event('pmf-copy')); return; }
+    // Ctrl+X: 선택 잘라내기
+    if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) { e.preventDefault(); dispatchEvent(new Event('pmf-cut')); return; }
+    // Ctrl+V: 붙여넣기
+    if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dispatchEvent(new Event('pmf-paste')); return; }
+    // Delete: 선택 삭제
+    if (e.key === 'Delete' || e.key === 'Del') { e.preventDefault(); dispatchEvent(new Event('pmf-delete')); return; }
     if (e.ctrlKey && e.key === '0') { e.preventDefault(); view.zoom = 1; view.panX = 0; view.panY = 0; store.notifyViewChanged(); return; }
     if (e.ctrlKey && e.key === '1') { e.preventDefault(); view.zoom = 1; store.notifyViewChanged(); return; }
     const n = Number(e.key);

@@ -40,6 +40,8 @@ export interface EditorState {
   catalog: readonly EnemyCatalogEntry[];
   /** 도구 프리뷰 — 합성 단계에서 격자 위에 투명 사각형으로 그린다. */
   previewCells: readonly XY[];
+  /** 선택 복사 클립보드: { width, height, cells (Uint8Array) } */
+  clipboard: { width: number; height: number; cells: Uint8Array } | null;
 }
 
 export type StoreListener = (state: EditorState, changed: ReadonlySet<keyof EditorState>) => void;
@@ -63,7 +65,7 @@ export class Store {
       layers: defaultLayers(), showGrid: true, viewVersion: 0,
       issues, reach, sim: null, simStale: false,
       fileName: 'untitled', catalog: DEFAULT_CATALOG,
-      previewCells: [],
+      previewCells: [], clipboard: null,
     };
   }
 
