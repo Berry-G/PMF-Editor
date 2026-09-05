@@ -8,7 +8,7 @@
  */
 
 // 왜: TS DOM lib 에 File System Access API 타입이 없어 로컬 선언한다 (SDD-08 §13 any 금지).
-interface FileSystemFileHandle {
+export interface FileSystemFileHandle {
   getFile(): Promise<File>;
   createWritable(): Promise<FileSystemWritableFileStream>;
 }
@@ -66,24 +66,4 @@ export async function saveFileAs(text: string, suggestedName: string): Promise<F
   const a = document.createElement('a'); a.href = url; a.download = suggestedName; a.click();
   URL.revokeObjectURL(url);
   return null;
-}
-
-export async function copyText(text: string): Promise<boolean> {
-  try { await navigator.clipboard.writeText(text); return true; }
-  catch { return false; }
-}
-
-const DRAFT_KEY = 'pmf-editor.draft';
-
-export function saveDraft(text: string, name: string): void {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), name, text })); } catch { /* ignore */ }
-}
-
-export function loadDraft(): { savedAt: number; name: string; text: string } | null {
-  try { const d = localStorage.getItem(DRAFT_KEY); if (!d) return null; return JSON.parse(d); }
-  catch { return null; }
-}
-
-export function clearDraft(): void {
-  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 }

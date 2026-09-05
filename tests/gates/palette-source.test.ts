@@ -51,11 +51,12 @@ describe('팔레트 외부 색 리터럴 게이트', () => {
       const m = /'#[0-9A-Fa-f]{3,8}'/g;
       let match;
       while ((match = m.exec(src)) !== null) {
-        problems.push(f + ':' + (src.slice(0, match.index).split('\\n').length) + ' ' + match[0]);
+        problems.push(f + ':' + (src.slice(0, match.index).split('\n').length) + ' ' + match[0]);
       }
     }
     expect(problems, 'hex 색 리터럴은 palette.ts 에만 있어야 한다 (ADR-E09). COLOR[cell] 로 대체하라').toEqual([]);
   });
 });
+
 
 

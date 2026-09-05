@@ -11,10 +11,11 @@ import { UI } from '../../core/palette.js';
 import { encode } from '../../core/toon/encode.js';
 import { decode } from '../../core/toon/decode.js';
 import { openFile, saveFile, saveFileAs } from '../../io/file.js';
+import type { FileSystemFileHandle } from '../../io/file.js';
 import { copyText } from '../../io/clipboard.js';
 
 // 저장 핸들 — File System Access API 핸들을 모듈 변수로 유지한다 (EditorState 에 두지 않음)
-let _saveHandle: any = null;
+let _saveHandle: FileSystemFileHandle | null = null;
 
 export function mountTopbar(store: Store, container: HTMLElement): void {
   const title = document.createElement('strong');
@@ -61,7 +62,7 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
       return;
     }
     store.state.history.replace(decoded.value);
-    _saveHandle = result.handle as any;
+    _saveHandle = result.handle;
     store.update((_s) => ({ doc: store.state.history.doc, fileName: result.name }));
   };
   openBtn.onclick = doOpen;
