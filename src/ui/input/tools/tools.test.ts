@@ -246,10 +246,33 @@ describe('ObjectTool', () => {
       expect(store.state.selection.ids).toContain('N02');
     }
   });
-  it('마을 셀 → none', () => {
+  it('빈 칸 클릭 → none', () => {
     const store = new Store(clone(SEED));
     const tool = new ObjectTool();
     tool.onDown(pi(0, 0), ctx(store));
     expect(store.state.selection.kind).toBe('none');
   });
+  it('마을 셀 클릭 → village', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(10, 13), ctx(store));
+    expect(store.state.selection.kind).toBe('village');
+    if (store.state.selection.kind === 'village') {
+      expect(store.state.selection.x).toBe(10);
+      expect(store.state.selection.y).toBe(13);
+    }
+  });
+  it('엣지 위(노드 아님) 클릭 → edge', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(3, 9), ctx(store));
+    expect(store.state.selection.kind).toBe('edge');
+  });
+  it('노드+엣지 같은 지점 → 노드 우선', () => {
+    const store = new Store(clone(SEED));
+    const tool = new ObjectTool();
+    tool.onDown(pi(5, 9), ctx(store));
+    expect(store.state.selection.kind).toBe('nodes');
+  });
 });
+
