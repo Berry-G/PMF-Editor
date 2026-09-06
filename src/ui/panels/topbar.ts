@@ -11,6 +11,7 @@ import { UI } from '../../core/palette.js';
 import { encode } from '../../core/toon/encode.js';
 import { decode } from '../../core/toon/decode.js';
 import { openFile, saveFile, saveFileAs } from '../../io/file.js';
+import { clearDraft } from '../../io/draft.js';
 import type { FileSystemFileHandle } from '../../io/file.js';
 import { copyText } from '../../io/clipboard.js';
 import { showSaveErrorDialog } from './dialogs.js';
@@ -88,9 +89,14 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
     const doSaveActual = async () => {
       const doc = store.state.history.doc;
       const text = encode(doc, { toolVersion: TOOL_VERSION, issues: store.state.issues });
-      const newHandle = await saveFile(text, _saveHandle, store.state.fileName + '.toon');
-      if (newHandle) { _saveHandle = newHandle; }
+      const r = await saveFile(text, _saveHandle, store.state.fileName + '.toon');
+      // 왜: 취소했으면 저장한 게 아니다. markSaved 를 부르면 창을 닫을 때 경고도 안 뜬다.
+      if (r.status === 'cancelled') return;
+      if (r.handle) { _saveHandle = r.handle; }
       store.state.history.markSaved();
+      // 왜: 저장했는데 초안이 남아 있으면 다음에 열 때 "복구할까요?" 가 또 뜬다.
+      //   의미 없는 팝업이 반복되면 진짜 경고까지 같이 무시하게 된다.
+      clearDraft();
       store.update((_s) => ({}));
     };
     const errorCount = store.state.issues.filter(i => i.severity === 'error').length;
@@ -111,9 +117,11 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
   saveAsBtn.onclick = async () => {
     const doc = store.state.history.doc;
     const text = encode(doc, { toolVersion: TOOL_VERSION, issues: store.state.issues });
-    const handle = await saveFileAs(text, store.state.fileName + '.toon');
-    if (handle) { _saveHandle = handle; }
+    const r = await saveFileAs(text, store.state.fileName + '.toon');
+    if (r.status === 'cancelled') return;
+    if (r.handle) { _saveHandle = r.handle; }
     store.state.history.markSaved();
+    clearDraft();
     store.update((_s) => ({}));
   };
   container.append(saveAsBtn);

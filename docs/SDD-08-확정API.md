@@ -364,16 +364,20 @@ export const TOOL_VERSION: string;   // version.ts — vite define 으로 packag
 // file.ts
 export interface OpenedFile { name: string; text: string; handle: FileSystemFileHandle | null }
 export function openFile(): Promise<OpenedFile | null>;                       // 사용자가 취소하면 null
-export function saveFile(text: string, handle: FileSystemFileHandle | null, suggestedName: string): Promise<FileSystemFileHandle | null>;
-//   handle 이 있으면 덮어쓴다. 없으면 saveAs. FSAA 가 없으면 다운로드 후 null
-export function saveFileAs(text: string, suggestedName: string): Promise<FileSystemFileHandle | null>;
+// 저장은 **취소를 성공과 구분한다** (2026-09-06). 예전에는 둘 다 null 이라, 취소해도 호출부가
+//   markSaved() 를 불러 "저장됨" 으로 표시했고 창을 닫을 때 경고도 안 떴다.
+export type SaveOutcome = { status: 'saved'; handle: FileSystemFileHandle | null } | { status: 'cancelled' };
+export function saveFile(text: string, handle: FileSystemFileHandle | null, suggestedName: string): Promise<SaveOutcome>;
+//   handle 이 있으면 덮어쓴다. 없으면 saveAs. FSAA 가 없으면 다운로드 후 { saved, handle: null }
+export function saveFileAs(text: string, suggestedName: string): Promise<SaveOutcome>;
+//   피커에서 AbortError 면 { cancelled } — 폴백 다운로드로 내려가지 않는다. 그 밖의 오류는 폴백.
 export const hasFsAccess: boolean;                                            // 'showOpenFilePicker' in window
 // clipboard.ts
 export function copyText(text: string): Promise<boolean>;
 // draft.ts
 export function saveDraft(text: string, name: string): void;                 // 키 'pmf-editor.draft', { savedAt, name, text }
 export function loadDraft(): { savedAt: number; name: string; text: string } | null;
-export function clearDraft(): void;
+export function clearDraft(): void;                                          // **저장 성공 시 반드시 부른다** (안 부르면 다음에 열 때 복구 프롬프트가 또 뜬다)
 ```
 
 ## 10. `ui/` `[D-08-10]`

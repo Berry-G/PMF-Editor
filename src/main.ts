@@ -86,7 +86,9 @@ function main(): void {
   // 5초 디바운스 초안 저장 (SDD-09 §11)
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
   store.subscribe((state) => {
-    if (state.history.dirty && !state.history.canUndo && !state.history.canRedo) return; // 저장 직후 무시
+    // 왜 여기에 가드가 없나: 예전에는 `dirty && !canUndo && !canRedo` 를 "저장 직후 무시" 라고
+    //   적어 뒀는데, undo 는 redoStack 을 채우므로 그 조건은 도달할 수 없었다 — 죽은 코드였다.
+    //   실제로 필요한 것은 dirty 검사뿐이고, 그건 아래 타이머 안에 있다.
     if (draftTimer) clearTimeout(draftTimer);
     draftTimer = setTimeout(() => {
       draftTimer = null;
