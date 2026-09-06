@@ -169,11 +169,31 @@ hex 는 `round(v*255)` 로 계산했다 (감마 변환 없음). Unity 컬러스�
 npm run dev      개발 서버 (HMR)
 npm test         vitest (core 전부 + 헤더 게이트 + 골든 왕복)
 npm run build    dist/pmf-editor.html  ← 기획자에게 주는 유일한 파일
-npm run deploy   위 파일을 VPS 웹루트로 (tar → scp → 전개. 로컬에 rsync 가 없다). 서브도메인·웹루트는 M2 배포 때 정한다
+npm run deploy   위 파일을 VPS 웹루트로 scp. 올린 뒤 URL 헤더까지 확인한다 (빌드는 하지 않는다)
 ```
 
 **호스팅 규약 (ADR-E01):** Caddy 정적 사이트 블록 하나, 웹루트 `/var/www/pmf-editor` (www-data, 755/644), 파일은 `index.html` 하나. 백엔드 없음.
 캐시 방지를 위해 HTML 에 `Cache-Control: no-cache` 헤더를 Caddy 에서 붙인다 — 기획자가 옛 버전을 붙들고 있지 않게.
+
+**서브도메인 (2026-09-06 확정): `pmf.manjac.co.kr`.** 서버는 만작 VPS 한 대를 공용으로 쓴다 (전역 메모리 `manjac_vps`).
+`/etc/caddy/Caddyfile` 에 더할 블록:
+
+```caddyfile
+pmf.manjac.co.kr {
+	root * /var/www/pmf-editor
+	file_server
+	encode gzip
+	# 왜: 기획자가 옛 버전을 붙들면 버그 재현이 안 된다. 파일이 하나뿐이라 캐시 이득도 없다.
+	header Cache-Control "no-cache, must-revalidate"
+}
+```
+
+`log` 지시어를 일부러 넣지 않았다 — 새 로그 파일을 만들면 `caddy validate` 를 root 로 돌렸을 때
+`root:600` 으로 생겨 서비스가 기동 실패한다(전역 메모리에 기록된 함정). 접근 로그가 필요해지면
+그때 넣고 `chown -R caddy:caddy /var/log/caddy` 를 함께 한다.
+
+적용 순서: hosting.kr 에 A 레코드 `pmf` → 49.247.204.208 → `caddy validate` → `systemctl reload caddy`.
+**A 레코드가 없는 상태로 reload 하지 마라** — 80 인바운드로 HTTP-01 을 통과해야 인증서가 나온다.
 
 산출 HTML 은 **버전 문자열** (`package.json` version + 빌드 시각) 을 상단 바에 표시하고, 저장하는 `.toon` 첫 주석에도 넣는다.
 기획자가 "어느 버전 툴로 만든 파일인지" 를 말할 수 있어야 문제를 재현할 수 있다.
