@@ -7,7 +7,10 @@
 > **`Prowl's Moving Factory` 의 맵·경로·스폰·밸런스를 기획자가 Unity 없이 브라우저에서 그리고 `.toon` 하나로 넘기는 툴.**
 
 대상 게임: `G:\Project\Prowl's Moving Factory` (Unity 6000.5.7f1). **게임 코드가 진실이고 이 툴은 사본이다** (SDD-00 §9).
-현재 상태: **설계 확정, 구현 0** (2026-09-03). 착수는 `docs/SDD-07-로드맵.md` M0 부터.
+현재 상태 (2026-09-06): **M0~M4 완료, M5 진행 중** (약 85%). 386 tests, `dist/pmf-editor.html` 109KB.
+- 남은 것: **M2 DoD 의 VPS 배포·기획자 URL 공개** (아직 안 함), M5 (2) 마무리 → (3)~(6), M6
+- M4 가정 둘은 게임 코드로 확정됐다: Idle 중 스폰(2026-09-04), 도달 영역 4-연결 ↔ `AllyUnit.CanReach` (2026-09-06, 불일치 0, `scripts/canreach-audit.cs`)
+- **M5 부터는 게임 프로젝트를 건드린다.** 게임 `CLAUDE.md` 를 따르고 Unity CLI 로 컴파일·테스트를 확인하라.
 
 ## 1. 환경
 
