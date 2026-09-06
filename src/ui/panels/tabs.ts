@@ -308,7 +308,19 @@ else if (id === 'balance') {
       seedRow.append(si); body.append(seedRow);
       shortRow.append(sti); body.append(shortRow);
       spdRow.append(spd); body.append(spdRow);
-      const runBtn = document.createElement('button'); runBtn.textContent = '▶ 실행'; runBtn.style.margin = '4px 0';
+      const runRow = document.createElement('div');
+      runRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0';
+      const runBtn = document.createElement('button'); runBtn.textContent = '▶ 실행';
+      // 왜 버튼 옆에 결과를 붙이는가: 요약은 버튼 아래에 그려지는데, 창이나 하단 패널이 낮으면
+      //   잘려서 "아무 일도 안 일어난다" 로 보인다 (2026-09-06 사용자 보고). 실제로는 돌고 있었다.
+      //   같은 줄에 두면 어떤 높이에서도 보인다.
+      const runEcho = document.createElement('span');
+      runEcho.style.cssText = 'font-size:12px;color:' + UI.textDim;
+      if (r) {
+        const incNow = r.incomeCeiling['Normal'] ?? r.incomeCeiling['보통'] ?? 0;
+        runEcho.textContent = `${r.stageSeconds.toFixed(3)}초 · ${r.totalSpawned}기 · 수입 ${Math.round(incNow)}` + (isStale ? '  ⚠ 낡음' : '');
+        if (isStale) runEcho.style.color = UI.warning;
+      }
       runBtn.onclick = () => {
         const seed = Math.max(1, Math.floor(Number(si.value) || 1));
         const shortcutOpenAt = sti.value ? Math.max(0, Number(sti.value)) : null;
@@ -317,7 +329,8 @@ else if (id === 'balance') {
         store.update((_s) => ({ sim: result, simStale: false }));
         render('sim');
       };
-      body.append(runBtn);
+      runRow.append(runBtn, runEcho);
+      body.append(runRow);
       if (r) {
         section('요약');
         if (isStale) { const stale = document.createElement('span'); stale.textContent = '⚠ 낡음'; stale.style.color = UI.warning; body.append(stale); }
