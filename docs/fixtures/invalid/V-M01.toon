@@ -1,3 +1,7 @@
+# V-M01: height 8 인데 rows 표는 7행이다. 표 헤더 rows[7] 은 실제 행 수와 맞으므로
+# TOON 구조는 정상이고, decode 의 "rows 수 ≠ height" 검사가 잡는다.
+# 왜 이렇게 두는가: 표 헤더를 실제 행 수와 다르게 만들면 파서가 먼저 죽어
+#   V-M01 검사가 영영 실행되지 않는다 (SDD-06 §3 감사 취지).
 schema: pmf.stage/1
 name: Minimal
 
@@ -13,7 +17,6 @@ map:
     _BBRBBB_
     _BBBBBB_
     _BBBBBB_
-    ________
 
 path:
   nodes[2]{id,x,y,role}:
