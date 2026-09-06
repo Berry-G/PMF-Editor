@@ -23,6 +23,14 @@ type Item = { label: string; run: () => void } | { sep: true };
 
 let menuEl: HTMLElement | null = null;
 
+/**
+ * "지름길 시작" 을 누른 노드. 두 번째 노드를 고르면 이어지고 비워진다.
+ * 왜 두 단계인가: 지름길은 도로를 따르지 않는 **새 연결**이라 양 끝을 사람이 정해야 한다.
+ *   `E` 도구의 Shift+클릭으로도 되지만 그건 숨은 조작이라 아무도 못 찾았다 (2026-09-06).
+ *   메뉴에 글자로 있으면 찾을 수 있다.
+ */
+let shortcutFrom: string | null = null;
+
 function close(): void {
   if (menuEl) { menuEl.remove(); menuEl = null; }
 }
@@ -97,7 +105,8 @@ function nodeItems(store: Store, node: PathNode): Item[] {
     start: '시작', exit: '탈출', waypoint: '경유', branch: '분기(아군용)',
   };
 
-  const items: Item[] = [{ label: `노드  ${node.id}  (${node.x}, ${node.y})`, run: () => { /* 제목 */ } }, { sep: true }];
+  const waiting = shortcutFrom !== null && shortcutFrom !== node.id ? `   [지름길: ${shortcutFrom} → ?]` : '';
+  const items: Item[] = [{ label: `노드  ${node.id}  (${node.x}, ${node.y})${waiting}`, run: () => { /* 제목 */ } }, { sep: true }];
 
   items.push({
     label: '이름 바꾸기…',
@@ -116,6 +125,31 @@ function nodeItems(store: Store, node: PathNode): Item[] {
       label: r === 'start' && hasOtherStart ? '역할 → 시작 (기존 시작점은 경유로)' : `역할 → ${roleName[r]}`,
       run: () => { if (r === 'start') makeStart(store, node.id); else run(store, setNodeRole(store.state.history.doc, node.id, r)); },
     });
+  }
+
+  items.push({ sep: true });
+
+  // 지름길 잇기 — 두 노드를 고르면 끝이다. 경로를 따라갈 필요가 없다:
+  //   지름길은 도로 밖으로 질러가는 연결이고, V-P03 은 비지름길 엣지만 검사한다.
+  if (shortcutFrom === null || shortcutFrom === node.id) {
+    items.push({
+      label: '여기서 지름길 시작 →',
+      run: () => { shortcutFrom = node.id; },
+    });
+  } else {
+    const fromId = shortcutFrom;
+    const dup = doc.path.edges.some(e =>
+      (e.from === fromId && e.to === node.id) || (e.bidirectional && e.from === node.id && e.to === fromId));
+    items.push({
+      label: `여기로 지름길 잇기  (${fromId} → ${node.id})`,
+      run: () => {
+        shortcutFrom = null;
+        if (dup) { alert(`"${fromId}" 와 "${node.id}" 사이에는 이미 엣지가 있다. 그 엣지를 우클릭해 지름길로 바꿔라 (중복 엣지는 V-P08 이 거부한다).`); return; }
+        // allowed=Escortee (V-P04) + 단방향 (V-P10, ADR-E11) 을 함께 준다.
+        run(store, addEdge({ from: fromId, to: node.id, allowed: ['Escortee'], bidirectional: false, shortcut: true }));
+      },
+    });
+    items.push({ label: '지름길 시작 취소', run: () => { shortcutFrom = null; } });
   }
 
   items.push({ sep: true });
@@ -237,7 +271,7 @@ export function mountContextMenu(canvas: HTMLCanvasElement, store: Store, view: 
 
   // 바깥 클릭·Esc·스크롤·창 크기 변경이면 닫는다. 열어 둔 채로 화면이 바뀌면 엉뚱한 곳을 가리킨다.
   document.addEventListener('pointerdown', (e) => { if (menuEl && !menuEl.contains(e.target as Node)) close(); }, true);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { shortcutFrom = null; close(); } }, true);
   window.addEventListener('resize', close);
   canvas.addEventListener('wheel', close, { passive: true });
 }
