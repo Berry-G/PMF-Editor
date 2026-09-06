@@ -5,6 +5,7 @@
  * 근거: SDD-03 §3 [D-03-03], SDD-09 §10 [D-09-10]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
+import { hitTestNode } from '../hittest.js';
 import { addEdge, deleteEdge } from '../../../core/commands/edges.js';
 import type { PathNode } from '../../../core/model/stage.js';
 
@@ -15,7 +16,7 @@ export class EdgeTool implements Tool {
   onDown(p: PointerInfo, ctx: ToolContext): void {
     // 히트 테스트
     const nodes = ctx.store.state.history.doc.path.nodes;
-    const node = this.hitTestNode(p.cell.x, p.cell.y, nodes);
+    const node = hitTestNode(p.cell.x, p.cell.y, nodes);
     if (!node) {
       // 빈 곳: 선택 해제
       this.firstNode = null;
@@ -60,19 +61,4 @@ export class EdgeTool implements Tool {
     ctx.store.update((_s) => ({ selection: { kind: 'none' as const } }));
   }
 
-  private hitTestNode(x: number, y: number, nodes: PathNode[]): PathNode | null {
-    const S = 32;
-    const threshold = 10;
-    let best: PathNode | null = null;
-    let bestDist = Infinity;
-    for (const n of nodes) {
-      const dx = (n.x - x) * S, dy = (n.y - y) * S;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < threshold && dist < bestDist) {
-        bestDist = dist;
-        best = n;
-      }
-    }
-    return best;
-  }
 }

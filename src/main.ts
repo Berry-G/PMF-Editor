@@ -13,11 +13,13 @@ import { Renderer } from './ui/canvas/renderer.js';
 import { Minimap } from './ui/canvas/minimap.js';
 import { mountTopbar } from './ui/panels/topbar.js';
 import { mountPalette } from './ui/panels/palette.js';
+import { mountTools } from './ui/panels/tools.js';
 import { mountLayers } from './ui/panels/layers.js';
 import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
 import { mountKeyboard } from './ui/input/keyboard.js';
 import { mountBottomResize } from './ui/input/split.js';
+import { mountContextMenu } from './ui/panels/contextmenu.js';
 import { mountProps } from './ui/panels/props.js';
 import { mountTabs } from './ui/panels/tabs.js';
 import { mountIssues } from './ui/panels/issues.js';
@@ -68,6 +70,7 @@ function main(): void {
   new Renderer(canvas, store, view);
   mountTopbar(store, need<HTMLElement>('#topbar'));
   mountPalette(store, need<HTMLElement>('#palette'));
+  mountTools(store, need<HTMLElement>('#tools'));
   mountLayers(store, need<HTMLElement>('#layers'));
   new Minimap(need<HTMLCanvasElement>('#minimap-canvas'), store, view);
   const status = new StatusBar(need<HTMLElement>('#statusbar'), store, view);
@@ -77,6 +80,7 @@ function main(): void {
   mountTabs(store, need<HTMLElement>('#tabs'), need<HTMLElement>('#tab-body'));
   mountIssues(store, need<HTMLElement>('#issues'), view, wrap);
   mountBottomResize(need<HTMLElement>('#app'), need<HTMLElement>('#bottom-resize'));
+  mountContextMenu(canvas, store, view);
 
   // beforeunload: dirty 확인
   window.addEventListener('beforeunload', (e) => {
