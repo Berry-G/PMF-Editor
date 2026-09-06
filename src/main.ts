@@ -17,6 +17,7 @@ import { mountLayers } from './ui/panels/layers.js';
 import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
 import { mountKeyboard } from './ui/input/keyboard.js';
+import { mountBottomResize } from './ui/input/split.js';
 import { mountProps } from './ui/panels/props.js';
 import { mountTabs } from './ui/panels/tabs.js';
 import { mountIssues } from './ui/panels/issues.js';
@@ -51,11 +52,15 @@ function main(): void {
   const wrap = need<HTMLElement>('#canvas-wrap');
   const canvas = need<HTMLCanvasElement>('#canvas');
   const dpr = window.devicePixelRatio;
+  // 왜 첫 번째만 맞추는가: `fitToMap` 은 줌과 팬을 **되돌린다**. ResizeObserver 는 창 크기 변경,
+  //   그리고 하단 패널 높이 조절(ui/input/split.ts) 때마다 뛰므로, 매번 맞추면 손잡이를 끄는 동안
+  //   보고 있던 자리가 계속 튕겨 나간다. 처음 한 번만 맞추고 그 뒤로는 사용자의 시점을 지킨다.
+  let fitted = false;
   const resize = (): void => {
     const vw = wrap.clientWidth, vh = wrap.clientHeight;
     canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     canvas.style.width = vw + 'px'; canvas.style.height = vh + 'px';
-    view.fitToMap(seed.map, vw, vh);
+    if (!fitted) { view.fitToMap(seed.map, vw, vh); fitted = true; }
     store.notifyViewChanged();
   };
   new ResizeObserver(resize).observe(wrap);
@@ -71,6 +76,7 @@ function main(): void {
   mountProps(store, need<HTMLElement>('#props'));
   mountTabs(store, need<HTMLElement>('#tabs'), need<HTMLElement>('#tab-body'));
   mountIssues(store, need<HTMLElement>('#issues'), view, wrap);
+  mountBottomResize(need<HTMLElement>('#app'), need<HTMLElement>('#bottom-resize'));
 
   // beforeunload: dirty 확인
   window.addEventListener('beforeunload', (e) => {

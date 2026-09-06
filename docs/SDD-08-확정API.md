@@ -434,11 +434,13 @@ export interface ToolContext { store: Store; view: View }
   <aside id="left"><section id="palette"></section><section id="tools"></section></aside>
   <main id="canvas-wrap"><canvas id="canvas"></canvas><div id="statusbar"></div></main>
   <aside id="right"><section id="props"></section><section id="minimap"><canvas id="minimap-canvas"></canvas></section><section id="layers"></section></aside>
-  <footer id="bottom"><nav id="tabs"></nav><div id="tab-body"></div></footer>
+  <footer id="bottom"><div id="bottom-resize"></div><nav id="tabs"></nav><div id="tab-body"></div><div id="issues"></div></footer>
   <div id="dialogs"></div>
 </div>
 ```
 CSS 는 `styles.css` 하나. CSS Grid 로 `topbar / left canvas right / bottom`. 캔버스는 `ResizeObserver` 로 크기를 따라가고 `devicePixelRatio` 를 반영한다 (SDD-09 §9-3).
+
+하단 행 높이는 고정이 아니라 `--bottom-h` (기본 200px) 다. `#bottom-resize` 를 끌면 `ui/input/split.ts` 가 그 변수만 바꾸고, 캔버스는 `ResizeObserver` 로 따라온다 — 캔버스 크기를 두 곳에서 계산하지 않는다. 값은 `localStorage["pmf-editor.bottomHeight"]` 에 남고, 더블클릭하면 기본값으로 돌아간다. 최소 72px(탭 줄이 잘리지 않게) / 최대는 캔버스에 160px 을 남긴 만큼.
 
 ## 12. 헤더 게이트 정규식 `[D-08-12]`
 

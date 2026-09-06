@@ -40,7 +40,8 @@ body {
 #app {
   display: grid;
   grid-template-columns: 168px 1fr 240px;
-  grid-template-rows: 40px 1fr 200px;
+  /* 하단 높이는 드래그로 바뀐다 (ui/input/split.ts 가 --bottom-h 만 고친다). */
+  grid-template-rows: 40px 1fr var(--bottom-h, 200px);
   grid-template-areas:
     'topbar topbar topbar'
     'left   canvas right'
@@ -127,6 +128,20 @@ body {
   flex: 1;
   overflow: auto;
   padding: 8px 10px;
+}
+
+/* 하단 높이 조절 손잡이. 하단의 윗변에 붙는다 — 위로 끌면 하단이 커진다. */
+#bottom-resize {
+  height: 6px;
+  flex: 0 0 6px;
+  margin-top: -1px; /* 왜: #bottom 의 위쪽 테두리와 겹쳐 손잡이가 테두리처럼 보이게 */
+  cursor: ns-resize;
+  background: transparent;
+  touch-action: none; /* 왜: 없으면 터치/펜에서 스크롤로 먹혀 pointermove 가 안 온다 */
+}
+#bottom-resize:hover,
+#bottom-resize:active {
+  background: var(--accent);
 }
 
 .version {
