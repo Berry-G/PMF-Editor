@@ -14,6 +14,7 @@ import { Minimap } from './ui/canvas/minimap.js';
 import { mountTopbar } from './ui/panels/topbar.js';
 import { mountPalette } from './ui/panels/palette.js';
 import { mountTools } from './ui/panels/tools.js';
+import { mountPathOps } from './ui/panels/pathops.js';
 import { mountLayers } from './ui/panels/layers.js';
 import { StatusBar } from './ui/panels/status.js';
 import { mountPointer } from './ui/input/pointer.js';
@@ -71,6 +72,7 @@ function main(): void {
   mountTopbar(store, need<HTMLElement>('#topbar'));
   mountPalette(store, need<HTMLElement>('#palette'));
   mountTools(store, need<HTMLElement>('#tools'));
+  mountPathOps(store, need<HTMLElement>('#path-ops'));
   mountLayers(store, need<HTMLElement>('#layers'));
   new Minimap(need<HTMLCanvasElement>('#minimap-canvas'), store, view);
   const status = new StatusBar(need<HTMLElement>('#statusbar'), store, view);

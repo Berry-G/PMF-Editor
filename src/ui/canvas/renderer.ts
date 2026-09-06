@@ -42,7 +42,7 @@ export class Renderer {
     this.dirtyFlag = true;
     this.store.subscribe((_s, c) => {
       if (c.has('history') || c.has('doc')) { this.lastDoc = null; this.dirtyFlag = true; }
-      if (c.has('reach') || c.has('issues')) { this.overlay.markAllDirty(); this.dirtyFlag = true; }
+      if (c.has('reach') || c.has('issues') || c.has('layers')) { this.overlay.markAllDirty(); this.objects.markAllDirty(); this.dirtyFlag = true; }
       if (c.has('viewVersion') || c.has('previewCells') || c.has('selection') || c.has('simPlayTime') || c.has('simPlaying') || c.has('sim')) this.dirtyFlag = true;
       this.requestFrame();
     });
@@ -65,7 +65,7 @@ export class Renderer {
     }
     this.drawTiles(map);
     this.drawOverlay(map, state.reach, state.issues);
-    this.drawObjects(doc);
+    this.drawObjects(doc, state.layers.issues ? state.issues : []);
     this.composite(state);
     this.dirtyFlag = false;
   }
@@ -113,7 +113,7 @@ export class Renderer {
     for (let i = -h; i < w + h; i += 4) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + h, y + h); ctx.stroke(); }
     ctx.restore();
   }
-private drawObjects(doc: StageDocument): void {
+private drawObjects(doc: StageDocument, issues: Issue[] = []): void {
     const d = this.objects.takeDirty(); if (d === null) return;
     const ctx = this.objects.ctx2d; const h = doc.map.height; const w = doc.map.width;
     const { nodes, edges } = doc.path;
@@ -140,11 +140,44 @@ private drawObjects(doc: StageDocument): void {
         ctx.closePath(); ctx.fill();
       }
     }
+    // 어느 노드·엣지가 문제인지 먼저 모은다. 한 대상에 여러 이슈가 붙으면 **더 심한 쪽**을 쓴다.
+    const nodeSeverity = new Map<string, 'error' | 'warning'>();
+    const edgeSeverity = new Map<number, 'error' | 'warning'>();
+    for (const is of issues) {
+      if (is.severity !== 'error' && is.severity !== 'warning') continue;
+      for (const id of is.nodeIds ?? []) {
+        if (is.severity === 'error' || !nodeSeverity.has(id)) nodeSeverity.set(id, is.severity);
+      }
+      if (is.edgeIndex !== undefined) {
+        if (is.severity === 'error' || !edgeSeverity.has(is.edgeIndex)) edgeSeverity.set(is.edgeIndex, is.severity);
+      }
+    }
+    // 문제 엣지는 선을 한 번 더 굵게 덧그린다 — 얇은 선에 테두리를 두를 수 없다.
+    for (const [ei, sev] of edgeSeverity) {
+      const e = edges[ei]; if (!e) continue;
+      const fn = nodes.find((n: PathNode) => n.id === e.from);
+      const tn = nodes.find((n: PathNode) => n.id === e.to);
+      if (!fn || !tn) continue;
+      ctx.beginPath();
+      ctx.moveTo(fn.x * CELL + CELL / 2, (h - 1 - fn.y) * CELL + CELL / 2);
+      ctx.lineTo(tn.x * CELL + CELL / 2, (h - 1 - tn.y) * CELL + CELL / 2);
+      ctx.strokeStyle = sev === 'error' ? UI.error : UI.warning; ctx.lineWidth = 5;
+      ctx.globalAlpha = 0.55; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+
     for (const n of nodes) {
       const cx = n.x * CELL + CELL / 2, cy = (h - 1 - n.y) * CELL + CELL / 2;
       ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2);
       ctx.fillStyle = n.role === 'start' ? EDGE.nodeStart : n.role === 'exit' ? EDGE.nodeExit : EDGE.nodeNormal;
       ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+      // 검증 마커: 문제를 가리키는 노드에 굵은 테두리를 두른다 (SDD-03 §5).
+      // 왜 노드를 그린 **직후** 인가: 노드 원 위에 겹쳐야 어느 노드인지 분명하다.
+      //   ❌ 는 빨강, ⚠️ 는 노랑. ℹ️ 는 그리지 않는다 — V-M06 은 상시 발화라 늘 켜져 있게 된다.
+      const sev = nodeSeverity.get(n.id);
+      if (sev) {
+        ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+        ctx.strokeStyle = sev === 'error' ? UI.error : UI.warning; ctx.lineWidth = 2.5; ctx.stroke();
+      }
       if (doc.burst.triggerNodeIds.includes(n.id)) {
         ctx.fillStyle = EDGE.shortcut; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('⚡', cx, cy - 12);

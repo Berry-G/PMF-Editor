@@ -435,7 +435,7 @@ export interface ToolContext { store: Store; view: View }
 ```html
 <div id="app">
   <header id="topbar"></header>
-  <aside id="left"><section id="palette"></section><section id="tools"></section></aside>
+  <aside id="left"><section id="palette"></section><section id="tools"></section><section id="path-ops"></section></aside>
   <main id="canvas-wrap"><canvas id="canvas"></canvas><div id="statusbar"></div></main>
   <aside id="right"><section id="props"></section><section id="minimap"><canvas id="minimap-canvas"></canvas></section><section id="layers"></section></aside>
   <footer id="bottom"><div id="bottom-resize"></div><nav id="tabs"></nav><div id="tab-body"></div><div id="issues"></div></footer>
