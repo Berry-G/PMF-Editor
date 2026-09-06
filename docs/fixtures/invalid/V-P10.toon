@@ -23,7 +23,7 @@ path:
   edges[3]{from,to,allowed,bidirectional,shortcut}:
     N00_start,N01,All,true,false
     N01,N02_exit,All,true,false
-    N00_start,N02_exit,All,false,true
+    N00_start,N02_exit,Escortee,true,true
 
 spawn:
   volleyCount: 1

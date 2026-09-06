@@ -211,6 +211,7 @@ export interface StageDocument {
 | V-P07 | ❌ | `start`/`exit`/`waypoint` 가 `R` 아닌 셀, 또는 `branch` 가 통행 불가 셀(`W ~ _`) | 노드는 도로 위에 있어야 한다. `branch` 는 아군용이라 `B`/`.`/`V` 면 된다 |
 | V-P08 | ❌ | 같은 (from,to) 중복, 또는 `bidirectional` 엣지의 역방향이 따로 존재 | 게임이 중복 엣지를 경고하고 탐색이 이상해진다 (`PathGraph.cs:143-152`) |
 | V-P09 | ❌ | id 형식 위반 또는 중복 | §3-1 |
+| V-P10 | ⚠️ | `shortcut=true` 인데 `bidirectional=true` | 지름길은 보호대상 전용(V-P04)이고 보호대상은 앞으로만 간다 — 반대 엣지는 아무도 지나지 않는 죽은 엣지다. 게임이 반대 엣지도 함께 열어 주므로(`PathGraph.OpenShortcut:126-130`) 당장 깨지지는 않아 ⚠️. 다만 양방향 그래프는 "지름길을 지나친 뒤 구매하면 되돌아간다" 버그의 원인이었고(2026-08-29 사용자 보고, `Escortee.RecalculateRoute` 주석), 그 우회책은 `Escortee` 안에만 있다 → ADR-E11 |
 
 ### 5-4. 스폰·경제 (S)
 

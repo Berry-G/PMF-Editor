@@ -10,7 +10,7 @@ import type { Severity } from './index.js';
 export type RuleId =
   | 'V-F01' | 'V-F02' | 'V-F03'
   | 'V-M01' | 'V-M02' | 'V-M03' | 'V-M04' | 'V-M05' | 'V-M06' | 'V-M07' | 'V-M08'
-  | 'V-P01' | 'V-P02' | 'V-P03' | 'V-P04' | 'V-P05' | 'V-P06' | 'V-P07' | 'V-P08' | 'V-P09'
+  | 'V-P01' | 'V-P02' | 'V-P03' | 'V-P04' | 'V-P05' | 'V-P06' | 'V-P07' | 'V-P08' | 'V-P09' | 'V-P10'
   | 'V-S01' | 'V-S02' | 'V-S03' | 'V-S04' | 'V-S05'
   | 'V-B01' | 'V-B02' | 'V-B03';
 
@@ -23,7 +23,7 @@ export interface RuleMeta {
 export const RULE_IDS: readonly RuleId[] = [
   'V-F01', 'V-F02', 'V-F03',
   'V-M01', 'V-M02', 'V-M03', 'V-M04', 'V-M05', 'V-M06', 'V-M07', 'V-M08',
-  'V-P01', 'V-P02', 'V-P03', 'V-P04', 'V-P05', 'V-P06', 'V-P07', 'V-P08', 'V-P09',
+  'V-P01', 'V-P02', 'V-P03', 'V-P04', 'V-P05', 'V-P06', 'V-P07', 'V-P08', 'V-P09', 'V-P10',
   'V-S01', 'V-S02', 'V-S03', 'V-S04', 'V-S05',
   'V-B01', 'V-B02', 'V-B03',
 ];
@@ -49,6 +49,7 @@ export const RULES: readonly RuleMeta[] = [
   { id: 'V-P07', severity: 'error', title: '노드 위치 오류' },
   { id: 'V-P08', severity: 'error', title: '엣지 중복' },
   { id: 'V-P09', severity: 'error', title: 'ID 형식 위반 또는 중복' },
+  { id: 'V-P10', severity: 'warning', title: '지름길 양방향' },
   { id: 'V-S01', severity: 'by-mode', title: '알 수 없는 적' },
   { id: 'V-S02', severity: 'error', title: '스폰 표 이상' },
   { id: 'V-S03', severity: 'error', title: '수치 범위 위반' },

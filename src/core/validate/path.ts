@@ -1,5 +1,5 @@
 /**
- * 목적: 경로 검증 규칙 V-P01~V-P09 구현.
+ * 목적: 경로 검증 규칙 V-P01~V-P10 구현.
  * 왜 이 구조인가: ID 형식(P09) 먼저 검사. V-P03 코너 규칙: 일반 엣지는 축 정렬·도로 위여야 함.
  * 바꾸면 안 되는 것: 메시지 템플릿 — 임포터 C# 과 같은 문장.
  * 근거: SDD-09 §3-3 [D-09-03-3], SDD-08 §4 [D-08-04]
@@ -87,6 +87,20 @@ export function validatePath(doc: StageDocument): Issue[] {
     const e = edges[i]!;
     if (e.shortcut && !(e.allowed.length === 1 && e.allowed[0] === 'Escortee'))
       issues.push({ id: 'V-P04', severity: 'error', path: `path.edges[${i}]`, message: `지름길 allowed "${e.allowed.join('+')}"`, edgeIndex: i });
+  }
+
+  // V-P10: 지름길 양방향
+  // 왜: 지름길은 Escortee 전용(V-P04)인데 보호대상은 앞으로만 간다. 반대 엣지는 아무도 지나지 않는
+  //   죽은 엣지이고, 양방향 그래프는 "지나친 뒤 구매하면 되돌아간다" 버그의 원인이었다
+  //   (게임 `Escortee.RecalculateRoute` 주석, 2026-08-29 사용자 보고).
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]!;
+    if (e.shortcut && e.bidirectional)
+      issues.push({
+        id: 'V-P10', severity: 'warning', path: `path.edges[${i}]`,
+        message: `지름길 "${e.from}→${e.to}" 가 양방향이다 — 보호대상은 앞으로만 가므로 반대 엣지는 아무도 지나지 않는다. bidirectional 을 false 로 두어라`,
+        edgeIndex: i,
+      });
   }
 
   // V-P08: 엣지 중복

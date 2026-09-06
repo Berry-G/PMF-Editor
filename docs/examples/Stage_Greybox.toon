@@ -75,7 +75,7 @@ path:
     B01_branch,N05,All,true,false
     B02_branch,N08,All,true,false
     B02_branch,N09,All,true,false
-    N05,N08,Escortee,true,true
+    N05,N08,Escortee,false,true
 
 # --- 스폰 --------------------------------------------------------------
 # 리듬 = 묶음(volley) + 휴지(rest). 웨이브가 아니라 '호흡' 이다 (회의 결정 2).
