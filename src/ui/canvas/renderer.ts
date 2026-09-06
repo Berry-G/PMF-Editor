@@ -42,7 +42,7 @@ export class Renderer {
     this.dirtyFlag = true;
     this.store.subscribe((_s, c) => {
       if (c.has('history') || c.has('doc')) { this.lastDoc = null; this.dirtyFlag = true; }
-      if (c.has('reach') || c.has('issues') || c.has('layers')) { this.overlay.markAllDirty(); this.objects.markAllDirty(); this.dirtyFlag = true; }
+      if (c.has('reach') || c.has('issues') || c.has('layers') || c.has('sim')) { this.overlay.markAllDirty(); this.objects.markAllDirty(); this.dirtyFlag = true; }
       if (c.has('viewVersion') || c.has('previewCells') || c.has('selection') || c.has('simPlayTime') || c.has('simPlaying') || c.has('sim')) this.dirtyFlag = true;
       this.requestFrame();
     });
@@ -65,7 +65,9 @@ export class Renderer {
     }
     this.drawTiles(map);
     this.drawOverlay(map, state.reach, state.issues);
-    this.drawObjects(doc, state.layers.issues ? state.issues : []);
+    // 시뮬을 보고 있으면 시작 지점 마커를 흐리게 — 안 그러면 분홍·보라가 두 개씩 보여
+    //   어느 것이 지금 위치인지 헷갈린다 (2026-09-06).
+    this.drawObjects(doc, state.layers.issues ? state.issues : [], state.layers.sim && state.sim !== null);
     this.composite(state);
     this.dirtyFlag = false;
   }
@@ -113,7 +115,7 @@ export class Renderer {
     for (let i = -h; i < w + h; i += 4) { ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + h, y + h); ctx.stroke(); }
     ctx.restore();
   }
-private drawObjects(doc: StageDocument, issues: Issue[] = []): void {
+private drawObjects(doc: StageDocument, issues: Issue[] = [], dimStart = false): void {
     const d = this.objects.takeDirty(); if (d === null) return;
     const ctx = this.objects.ctx2d; const h = doc.map.height; const w = doc.map.width;
     const { nodes, edges } = doc.path;
@@ -199,8 +201,13 @@ private drawObjects(doc: StageDocument, issues: Issue[] = []): void {
       //   (2026-09-06 사용자 보고). 둘은 같은 셀에서 출발한다 — ADR-E05.
       // 왜 모체를 먼저 그리는가: 모체 사각(1.5칸)이 보호대상 원(0.9칸)보다 크다. 나중에 그리면
       //   보호대상을 통째로 덮는다. 큰 것을 뒤로 보내야 둘 다 보인다.
+      // 왜 알파를 내리는가: 재생 중에는 움직이는 마커가 따로 그려진다. 정지 마커를 그대로 두면
+      //   같은 색이 두 개씩 보여 어느 것이 지금 위치인지 알 수 없다. 지우지 않고 흐리게만 —
+      //   출발 지점이 어디였는지는 여전히 보여야 한다.
+      if (dimStart) ctx.globalAlpha = 0.3;
       ctx.fillStyle = ACTOR.mother; ctx.fillRect(cx - ms, cy - ms, ms * 2, ms * 2);
       ctx.fillStyle = ACTOR.escortee; ctx.beginPath(); ctx.arc(cx, cy, es, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
     }
     const en = nodes.find((n: PathNode) => n.role === "exit");
     if (en) {

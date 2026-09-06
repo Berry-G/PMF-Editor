@@ -326,7 +326,10 @@ else if (id === 'balance') {
         const shortcutOpenAt = sti.value ? Math.max(0, Number(sti.value)) : null;
         const params: SimParams = { seed, dt: DEFAULT_SIM_PARAMS.dt, shortcutOpenAt, maxSeconds: DEFAULT_SIM_PARAMS.maxSeconds };
         const result = simulate(d, params, store.state.catalog);
-        store.update((_s) => ({ sim: result, simStale: false }));
+        // 왜 레이어를 같이 켜는가: `시뮬` 레이어가 기본 꺼짐이라, 실행하고 재생을 눌러도 캔버스에
+        //   아무것도 안 그려진다 — "배속이 있길래 움직이는 줄 알았다" 는 오해가 여기서 났다
+        //   (2026-09-06). 시뮬을 돌렸다는 건 보겠다는 뜻이다.
+        store.update((_s) => ({ sim: result, simStale: false, layers: { ..._s.layers, sim: true } }));
         render('sim');
       };
       runRow.append(runBtn, runEcho);
@@ -395,7 +398,10 @@ else if (id === 'balance') {
           };
           stopBtn.onclick = () => { store.update((_s) => ({ simPlaying: false, simPlayTime: 0 })); playBtn.textContent = '▶'; updatePlay(); };
           const ctrlRow = document.createElement('div'); ctrlRow.style.fontSize = '12px';
-          ctrlRow.append(playBtn, stopBtn, ' ', scrub, ' ', playSec); body.append(ctrlRow);
+          ctrlRow.append(playBtn, stopBtn, ' ', scrub, ' ', playSec);
+          // 왜 여기에 끼우는가: 이 블록은 타임라인 캔버스 안쪽이라 그대로 body 에 붙이면 화면
+          //   아래로 밀려 안 보인다. 만드는 자리는 두고 **놓는 자리만** 실행 버튼 옆으로 옮긴다.
+          runRow.after(ctrlRow);
           updatePlay();
         }
       }
