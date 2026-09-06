@@ -75,9 +75,10 @@ namespace PMF.Data
     public sealed class MapDefinition : ScriptableObject
     {
         [SerializeField] private int _width, _height;
-        [SerializeField] private Vector3 _origin;
+        [SerializeField] private Vector2 _origin;   // 2026-09-06: Vector3 → Vector2. 2D 격자라 Z 가 의미 없고,
+                                                     // Vector3 로 두면 Z=0 을 넣었다가 SceneParts 에서 다시 내리는 손해만 있다
         [SerializeField] private byte[] _cells;     // index = y*width + x. 값 = CellType, 255 = 타일 없음
-        public int Width => _width;  public int Height => _height;  public Vector3 Origin => _origin;
+        public int Width => _width;  public int Height => _height;  public Vector2 Origin => _origin;
         public bool TryGetCell(int x, int y, out CellType cell);   // 255 면 false
     }
 
