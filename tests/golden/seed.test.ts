@@ -58,9 +58,13 @@ describe('씨앗 골든', () => {
     expect(r.totalBuildable - r.reachableBuildable).toBe(178);
   });
 
-  it('노드16, 엣지18', () => {
+  // 2026-09-06: 분기 노드 2개(B01/B02)와 그 엣지 4개를 씨앗에서 뺐다 (16/18 → 14/14).
+  //   게임에서 아무도 쓰지 않는 데이터였다 — Village.DepartureNode 가 유일한 소비 후보인데
+  //   그 프로퍼티를 읽는 코드가 없고, 아군은 AllyWalkGraph 로 걷는다 (mem:branch_nodes_are_dead).
+  it('노드14, 엣지14 (분기 없음)', () => {
     const doc = (decode(SEED_TEXT) as V).value;
-    expect(doc.path.nodes.length).toBe(16);
-    expect(doc.path.edges.length).toBe(18);
+    expect(doc.path.nodes.length).toBe(14);
+    expect(doc.path.edges.length).toBe(14);
+    expect(doc.path.nodes.some((n: { role: string }) => n.role === 'branch'), '씨앗에 분기 노드가 남아 있다').toBe(false);
   });
 });

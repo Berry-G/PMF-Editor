@@ -35,10 +35,10 @@ map:
 
 # --- 경로 --------------------------------------------------------------
 # id 는 게임의 GameObject 이름이 된다. 버스트 트리거가 이 이름으로 정확히 매칭하므로 툴은 재번호하지 않는다.
-# role: start(보호대상·모체 출발) / exit(탈출) / branch(도로 밖 분기, 아군 행군용) / waypoint(그 외)
+# role: start(보호대상·모체 출발) / exit(탈출) / waypoint(그 외) / branch(도로 밖에 둘 수 있는 유일한 역할)
 # 코너 노드는 도로가 꺾이는 셀에 정확히 놓여야 한다 — 한 칸 어긋나면 직선 구간이 코너를 대각선으로 가로지른다.
 path:
-  nodes[16]{id,x,y,role}:
+  nodes[14]{id,x,y,role}:
     N00_start,1,9,start
     N01,5,9,waypoint
     N02,8,9,waypoint
@@ -53,11 +53,9 @@ path:
     N11,24,6,waypoint
     N12,27,6,waypoint
     N13_exit,30,6,exit
-    B01_branch,12,8,branch
-    B02_branch,20,10,branch
   # allowed: All | Escortee | Enemy | Ally, 여러 개면 '+' 로 잇는다. 양방향 엣지는 한 번만 적는다 (게임이 반대 방향을 만든다).
   # 지름길은 반드시 Escortee 만 — 적이 지나가면 지름길의 존재 이유가 사라진다 (ADR-0004).
-  edges[18]{from,to,allowed,bidirectional,shortcut}:
+  edges[14]{from,to,allowed,bidirectional,shortcut}:
     N00_start,N01,All,true,false
     N01,N02,All,true,false
     N02,N03,All,true,false
@@ -71,10 +69,6 @@ path:
     N10,N11,All,true,false
     N11,N12,All,true,false
     N12,N13_exit,All,true,false
-    B01_branch,N04,All,true,false
-    B01_branch,N05,All,true,false
-    B02_branch,N08,All,true,false
-    B02_branch,N09,All,true,false
     N05,N08,Escortee,false,true
 
 # --- 스폰 --------------------------------------------------------------
