@@ -12,6 +12,7 @@ import { encode } from '../../core/toon/encode.js';
 import { decode } from '../../core/toon/decode.js';
 import { openFile, saveFile, saveFileAs } from '../../io/file.js';
 import { clearDraft } from '../../io/draft.js';
+import { createEmptyStage } from '../../core/model/factory.js';
 import type { FileSystemFileHandle } from '../../io/file.js';
 import { copyText } from '../../io/clipboard.js';
 import { showSaveErrorDialog } from './dialogs.js';
@@ -60,6 +61,27 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
   const btnSep = document.createElement('span');
   btnSep.style.marginLeft = 'auto';
   container.append(btnSep);
+
+  // 새로 만들기 — 빈 스테이지. 씨앗을 지우고 처음부터 그리고 싶을 때.
+  const newBtn = document.createElement('button');
+  newBtn.textContent = '새로 만들기';
+  newBtn.style.marginLeft = '4px';
+  newBtn.onclick = () => {
+    // 왜 dirty 를 먼저 묻는가: 되돌릴 수 없는 조작이다. Undo 는 문서 교체를 넘지 못한다
+    //   (history.replace 가 스택을 비운다).
+    if (store.state.history.dirty && !confirm('저장하지 않은 변경이 있다. 버리고 새로 만들까?')) return;
+    const name = prompt('스테이지 이름 (파일 이름이 된다)', 'Stage_New');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (trimmed === '') { alert('이름이 비었다.'); return; }
+    // 크기는 게임 격자와 같은 32×18 로 시작한다. 바꾸려면 맵 탭의 [크기 변경].
+    store.state.history.replace(createEmptyStage(trimmed, 32, 18));
+    _saveHandle = null;
+    // 왜 초안을 지우는가: 새 문서를 열었는데 다음에 옛 초안 복구를 물으면 혼란스럽다.
+    clearDraft();
+    store.update((_s) => ({ doc: store.state.history.doc, fileName: trimmed }));
+  };
+  container.append(newBtn);
 
   // 열기
   const openBtn = document.createElement('button');
@@ -112,7 +134,7 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
 
   // 다른 이름으로 저장 (오른쪽 클릭 메뉴 없이 버튼 하나 더)
   const saveAsBtn = document.createElement('button');
-  saveAsBtn.textContent = '다른 이름';
+  saveAsBtn.textContent = '다른 이름으로 저장';
   saveAsBtn.style.marginLeft = '4px';
   saveAsBtn.onclick = async () => {
     const doc = store.state.history.doc;

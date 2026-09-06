@@ -69,6 +69,7 @@ const GROUPS: Group[] = [
   {
     title: '파일',
     rows: [
+      { keys: '—', desc: '새로 만들기 (상단 바 버튼)' },
       { keys: 'Ctrl+O', desc: '열기' },
       { keys: 'Ctrl+S', desc: '저장' },
       { keys: 'Ctrl+Shift+C', desc: 'TOON 을 클립보드로 복사' },
