@@ -1,7 +1,7 @@
 /**
  * 목적: 사각 도구 — 드래그 영역을 채운다 (테두리 아님, 통째로).
  * 왜 이 구조인가: SDD-09 §10. rectCells(map, ..., false) 로 채움 영역.
- * 바꾸면 안 되는 것: 우클릭 = 지우개 셀. V 마을 크기 1 강제.
+ * 바꾸면 안 되는 것: 우클릭은 이 도구에 오지 않는다 (ADR-E12). V 마을 크기 1 강제.
  * 근거: SDD-09 §10 [D-09-10], SDD-03 §3 [D-03-03]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
@@ -30,7 +30,7 @@ export class RectTool implements Tool {
     this.dragging = false;
     const map = ctx.store.state.history.doc.map;
     const palCell = ctx.store.state.paletteCell as Cell;
-    const useCell = p.button === 2 ? ctx.store.state.eraserCell as Cell : palCell;
+    const useCell = palCell;   // 우클릭 지우개는 폐지됐다 (ADR-E12) — 우클릭은 컨텍스트 메뉴다
     const cells = rectCells(map, this.startCell.x, this.startCell.y, p.cell.x, p.cell.y, false);
     const cmd = paintCells(map, cells.map(c => ({ x: c.x, y: c.y, cell: useCell })), '사각');
     ctx.store.dispatch(cmd);

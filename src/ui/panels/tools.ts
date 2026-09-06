@@ -5,8 +5,7 @@
  *   팔레트와 같은 모양으로 바로 아래에 둔다 — 스타크래프트 배치를 따른다 (SDD-03 §1).
  * 바꾸면 안 되는 것: 표시 순서와 단축키 글자. 단축키는 `ui/input/keyboard.ts` 의 TOOL_KEYS 가
  *   정본이고 여기는 그것을 **보여 주기만** 한다 — 두 곳이 어긋나면 화면이 거짓말을 한다.
- *   셀 도구와 경로 도구를 갈라 둔 것도 유지하라. 우클릭 동작이 갈리는 경계가 그것이다
- *   (셀 도구=지우개 / 경로 도구=컨텍스트 메뉴).
+ *   셀 도구와 경로 도구를 갈라 둔 것도 유지하라 — 하는 일이 다르다.
  * 근거: SDD-03 §1 [D-03-01], SDD-03 §3 [D-03-03], SDD-08 §11 [D-08-11]
  */
 import type { Store } from '../state.js';
@@ -62,13 +61,12 @@ export function mountTools(store: Store, container: HTMLElement): void {
   const rows: HTMLElement[] = [];
   for (const e of CELL_TOOLS) { const r = row(store, e); container.append(r); rows.push(r); }
 
-  // 왜 가르는가: 우클릭이 셀 도구에서는 지우개, 경로 도구에서는 컨텍스트 메뉴다.
-  //   경계가 눈에 보이지 않으면 우클릭이 왜 다르게 도는지 알 수 없다.
+  // 왜 가르는가: 위는 칸을 칠하고 아래는 경로를 만진다. 하는 일이 달라 섞이면 헷갈린다.
   const sep = document.createElement('div');
   sep.style.cssText = 'height:1px;background:' + UI.panelBorder + ';margin:6px 0';
   container.append(sep);
   const note = document.createElement('div');
-  note.textContent = '경로 (우클릭 = 메뉴)';
+  note.textContent = '경로';
   note.style.cssText = 'color:' + UI.textDim + ';font-size:11px;margin-bottom:4px';
   container.append(note);
 

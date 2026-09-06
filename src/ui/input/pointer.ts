@@ -54,6 +54,9 @@ export function mountPointer(canvas: HTMLCanvasElement, store: Store, view: View
       previousToolId = store.state.tool;
       store.update((_s) => ({ tool: 'eyedropper' as const }));
     }
+    // 왜 우클릭을 걸러내는가: 우클릭은 컨텍스트 메뉴 전용이다 (ADR-E12). 예전에는 지우개였는데,
+    //   팔레트에서 칸을 골라 칠하면 되는 일이라 조작만 둘로 늘렸다.
+    if (e.button === 2) { status.setCell(pi(e).cell.x, pi(e).cell.y); return; }
     const t = TOOLS[store.state.tool]; if (t) { currentTool = t; t.onDown(pi(e), ctx); }
     status.setCell(pi(e).cell.x, pi(e).cell.y);
   };

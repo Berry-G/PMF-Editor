@@ -1,7 +1,7 @@
 /**
  * 목적: 선 도구 — 드래그한 두 점 사이 Bresenham 직선을 칠한다. 브러시 크기 반영.
  * 왜 이 구조인가: SDD-09 §10. lineCells + brushCells 로 굵기 조절.
- * 바꾸면 안 되는 것: Shift 는 직선 고정. 우클릭 = 지우개 셀.
+ * 바꾸면 안 되는 것: Shift 는 직선 고정. 우클릭은 이 도구에 오지 않는다 (ADR-E12).
  * 근거: SDD-09 §10 [D-09-10], SDD-03 §3 [D-03-03]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
@@ -31,7 +31,7 @@ export class LineTool implements Tool {
     const map = ctx.store.state.history.doc.map;
     const size = ctx.store.state.brushSize;
     const palCell = ctx.store.state.paletteCell as Cell;
-    const useCell = p.button === 2 ? ctx.store.state.eraserCell as Cell : palCell;
+    const useCell = palCell;   // 우클릭 지우개는 폐지됐다 (ADR-E12) — 우클릭은 컨텍스트 메뉴다
     const actualSize = useCell === Cell.VillageSlot ? 1 as const : size;
     const base = lineCells(map, this.startCell.x, this.startCell.y, p.cell.x, p.cell.y);
     // 브러시 크기 반영: 각 선 셀 주변을 brushCells 로 확장

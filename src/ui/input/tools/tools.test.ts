@@ -71,13 +71,16 @@ describe('BrushTool', () => {
     tool.onUp(pi(8, 8), ctx(store));
     expect(countCells(store.state.history.doc.map, Cell.Water)).toBeGreaterThan(1);
   });
-  it('우클릭=지우개', () => {
+  // 왜 이 테스트가 남아 있나: 우클릭 지우개는 폐지됐다 (ADR-E12). 도구는 이제 버튼을 보지
+  //   않으므로, 우클릭이 들어와도 팔레트 칸으로 칠한다. 우클릭을 막는 것은 pointer.ts 의
+  //   게이트 하나뿐이라는 사실을 여기서 못박는다 — 도구에 버튼 분기가 되살아나면 실패한다.
+  it('버튼을 보지 않는다 — 우클릭이 와도 팔레트 칸으로 칠한다 (게이트는 pointer.ts)', () => {
     const store = new Store(clone(SEED));
-    store.state.eraserCell = Cell.Empty;
+    store.update((_s) => ({ paletteCell: Cell.Water }));
     const tool = new BrushTool();
     tool.onDown(pi(5, 5, 2), ctx(store));
     tool.onUp(pi(5, 5, 2), ctx(store));
-    expect(cellAt(store.state.history.doc.map, 5, 5)).toBe(Cell.Empty);
+    expect(cellAt(store.state.history.doc.map, 5, 5)).toBe(Cell.Water);
   });
 });
 
@@ -127,12 +130,23 @@ describe('SelectTool', () => {
       expect(store.state.selection.y1).toBe(8);
     }
   });
-  it('우클릭 시 지우개로 칠한다', () => {
+  it('우클릭 드래그가 칠하지 않는다 (ADR-E12)', () => {
+    const store = new Store(clone(SEED));
+    const before = cellAt(store.state.history.doc.map, 5, 5);
+    const tool = new SelectTool();
+    tool.onDown(pi(5, 5), ctx(store));
+    tool.onUp(pi(6, 6, 2), ctx(store));
+    expect(cellAt(store.state.history.doc.map, 5, 5)).toBe(before);
+  });
+
+  // Delete 는 그대로 eraserCell 로 칠한다 — 우클릭만 없어졌지 "지운다" 는 동작이 없어진 게 아니다.
+  it('Delete 는 eraserCell 로 칠한다', () => {
     const store = new Store(clone(SEED));
     store.state.eraserCell = Cell.Empty;
     const tool = new SelectTool();
     tool.onDown(pi(5, 5), ctx(store));
-    tool.onUp(pi(6, 6, 2), ctx(store));
+    tool.onUp(pi(6, 6), ctx(store));
+    tool.deleteSelection(ctx(store));
     expect(cellAt(store.state.history.doc.map, 5, 5)).toBe(Cell.Empty);
   });
 });

@@ -4,8 +4,8 @@
  *   처음 쓰는 사람이 무엇이 되는지 알 수 없었다 (2026-09-06 사용자 피드백). 대상 위에서
  *   바로 할 수 있는 일을 보여 준다. 커맨드는 기존 것을 그대로 쓴다 — 여기서 문서를 직접
  *   고치지 않는다 (ADR-E04).
- * 바꾸면 안 되는 것: **셀 도구(B L R F)에서는 열지 않는다.** 우클릭은 그 도구들의 지우개이고
- *   그건 확정된 조작이다 (SDD-03 §2). 경로 도구(N E V)에서만 연다.
+ * 바꾸면 안 되는 것: **도구와 무관하게 연다.** 메뉴 내용은 커서 아래에 무엇이 있느냐로만 정한다
+ *   — 어떤 도구를 켜 뒀는지로 우클릭이 달라지면 예측할 수 없다 (ADR-E12).
  *   지름길을 켤 때 allowed=Escortee + 단방향을 함께 준다 (V-P04, ADR-E11) — 하나만 주면
  *   툴이 자기 검증 규칙을 어기는 문서를 만든다.
  * 근거: SDD-03 §3 [D-03-03], SDD-02 §3 [D-02-04], ADR-E04, ADR-E11
@@ -20,9 +20,6 @@ import { addEdge, deleteEdge, setEdgeProps } from '../../core/commands/edges.js'
 import { setTable } from '../../core/commands/fields.js';
 
 type Item = { label: string; run: () => void } | { sep: true };
-
-/** 경로를 다루는 도구에서만 연다. 셀 도구에서 우클릭은 지우개다 (SDD-03 §2). */
-const PATH_TOOLS = new Set(['node', 'edge', 'object']);
 
 let menuEl: HTMLElement | null = null;
 
@@ -225,8 +222,6 @@ function emptyItems(store: Store, cx: number, cy: number): Item[] {
 
 export function mountContextMenu(canvas: HTMLCanvasElement, store: Store, view: View): void {
   canvas.addEventListener('contextmenu', (e) => {
-    // 셀 도구에서는 우클릭이 지우개다. pointer.ts 가 이미 preventDefault 하므로 여기선 넘긴다.
-    if (!PATH_TOOLS.has(store.state.tool)) return;
     e.preventDefault();
 
     const doc = store.state.history.doc;

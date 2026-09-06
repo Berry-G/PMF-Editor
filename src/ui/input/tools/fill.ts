@@ -1,7 +1,7 @@
 /**
  * 목적: 채우기 도구 — 4-연결 플러드필. 클릭한 셀과 같은 종류만 채운다.
  * 왜 이 구조인가: SDD-09 §10. floodFill 은 core/geometry 에서 이미 검증됨.
- * 바꾸면 안 되는 것: 우클릭 = 지우개 셀.
+ * 바꾸면 안 되는 것: 우클릭은 이 도구에 오지 않는다 (ADR-E12).
  * 근거: SDD-09 §10 [D-09-10], SDD-03 §3 [D-03-03]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
@@ -24,7 +24,7 @@ export class FillTool implements Tool {
   onUp(p: PointerInfo, ctx: ToolContext): void {
     const map = ctx.store.state.history.doc.map;
     const palCell = ctx.store.state.paletteCell as Cell;
-    const useCell = p.button === 2 ? ctx.store.state.eraserCell as Cell : palCell;
+    const useCell = palCell;   // 우클릭 지우개는 폐지됐다 (ADR-E12) — 우클릭은 컨텍스트 메뉴다
     const same = (c: Cell) => c === cellAt(map, p.cell.x, p.cell.y);
     const cells = floodFill(map, p.cell.x, p.cell.y, same);
     if (cells.length === 0) return;
