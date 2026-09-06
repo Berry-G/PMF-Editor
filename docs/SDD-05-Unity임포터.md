@@ -53,7 +53,13 @@ SDD-02 §6 의 부분집합만. 구현 순서:
 
 ## 4. DTO 와 검증 `[D-05-04]`
 
-- `StageDocument` (C#): SDD-02 §1 과 필드명·타입을 맞춘다. `cells` 는 `byte[]` (값 = `CellType`, 255 = 없음).
+- `StageDocument` (C#): SDD-02 §1 과 필드명·타입을 맞춘다. `cells` 는 `CellType[]` (`Empty = 255`).
+  `CellType` 의 숫자는 게임 `Runtime/Grid/CellType.cs` 그대로다 — authoring 이 자기 값을 만들면
+  임포터가 SO 에 쓰는 순간 조용히 밀린 맵이 들어간다 (2026-09-06 실제로 그럴 뻔했다:
+  `Empty=0` 이 게임 `Blocked=0` 과 충돌). 열거형 사이 변환은 **이름으로** 하고 숫자를 쓰지 마라.
+  SO 에 저장할 때만 `byte[]` 로 내린다.
+  왜 `byte[]` 가 아닌가(2026-09-06 변경): DTO 단계에서 타입이 살아 있으면 `255` 를 산술에
+  쓰는 실수를 컴파일러가 막는다. TS 쪽 `Uint8Array` 와 값은 그대로 같다.
 - `AuthoringValidator.Validate(doc, EnemyNames) → List<Issue { Id, Severity, Path, Message }>`.
   규칙 ID·심각도·조건은 SDD-02 §5 표와 **글자까지 같다.** 툴 쪽 `core/validate` 와 차이가 나면 이 SDD 가 이기고 둘 다 고친다.
 - `EnemyNames` 는 `AssetDatabase.FindAssets("t:EnemyDefinition")` 로 모은 **에셋 파일명** (`Robot_Walker`). `_displayName`(`워커`)이 아니다 — 표시명은 바뀌어도 되는 값이라 참조 키로 쓰면 안 된다. V-S01 은 여기서 ❌ 다.
