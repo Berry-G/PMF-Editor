@@ -373,9 +373,16 @@ else if (id === 'balance') {
           // 재생 컨트롤
           section('재생');
           const playSec = document.createElement('span'); playSec.style.cssText = 'font-size:12px;color:' + UI.textDim;
-          const playBtn = document.createElement('button'); playBtn.textContent = '▶';
+          const playBtn = document.createElement('button');
+          // 왜 상태에서 읽는가: 탭은 언제든 다시 그려진다. 라벨을 '▶' 로 박아 두면 재생 중에
+          //   다시 그려지는 순간 멈춘 것처럼 보인다.
+          playBtn.textContent = store.state.simPlaying ? '⏸' : '▶';
           const stopBtn = document.createElement('button'); stopBtn.textContent = '⏹';
           const scrub = document.createElement('input'); scrub.type = 'range'; scrub.min = '0'; scrub.max = String(r.stageSeconds); scrub.step = '0.1'; scrub.style.width = '200px';
+          // 왜 상태에서 읽는가: 손잡이 위치는 DOM 에만 있었다. 다시 그려지면 0 으로 돌아가고,
+          //   ⏹ 로 시간을 0 으로 돌려도 손잡이는 그 자리에 남았다 — "중지가 안 먹는다" 의 정체다
+          //   (2026-09-06 사용자 보고).
+          scrub.value = String(store.state.simPlayTime);
           const updatePlay = () => { playSec.textContent = formatPlayTime(store.state.simPlayTime, r.stageSeconds); };
           scrub.oninput = () => { store.update((_s) => ({ simPlayTime: Number(scrub.value) })); updatePlay(); };
           playBtn.onclick = () => {
@@ -396,7 +403,10 @@ else if (id === 'balance') {
             };
             requestAnimationFrame(tick);
           };
-          stopBtn.onclick = () => { store.update((_s) => ({ simPlaying: false, simPlayTime: 0 })); playBtn.textContent = '▶'; updatePlay(); };
+          stopBtn.onclick = () => {
+            store.update((_s) => ({ simPlaying: false, simPlayTime: 0 }));
+            playBtn.textContent = '▶'; scrub.value = '0'; updatePlay();
+          };
           const ctrlRow = document.createElement('div'); ctrlRow.style.fontSize = '12px';
           ctrlRow.append(playBtn, stopBtn, ' ', scrub, ' ', playSec);
           // 왜 여기에 끼우는가: 이 블록은 타임라인 캔버스 안쪽이라 그대로 body 에 붙이면 화면
@@ -424,7 +434,12 @@ else if (id === 'balance') {
   render(active);
 
   store.subscribe((_state, changed) => {
-    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues') && !changed.has('sim') && !changed.has('simStale') && !changed.has('simPlayTime') && !changed.has('simPlaying')) return;
+    // 왜 simPlayTime·simPlaying 이 빠졌나: 재생 컨트롤은 **자기 DOM 을 직접 만진다**.
+    //   여기서 다시 그리면 tick 이 붙잡은 스크러버·시간 표시가 떨어져 나가 화면이 멈춘 것처럼
+    //   보인다 — ▶ 를 눌러도 시간이 0.0 에서 안 움직였던 원인이다 (2026-09-06).
+    //   다시 그려질 일이 생기면 컨트롤이 상태에서 초기값을 읽으므로 위치가 복원된다.
+    //   캔버스는 렌더러가 자기 구독으로 따라간다.
+    if (!changed.has('history') && !changed.has('doc') && !changed.has('reach') && !changed.has('issues') && !changed.has('sim') && !changed.has('simStale')) return;
     render(active);
   });
 }
