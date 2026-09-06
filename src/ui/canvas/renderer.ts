@@ -127,12 +127,18 @@ private drawObjects(doc: StageDocument): void {
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
       ctx.strokeStyle = e.shortcut ? EDGE.shortcut : EDGE.normal;
       ctx.setLineDash(e.shortcut ? [8, 8] : []); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
-      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, ang = Math.atan2(y2 - y1, x2 - x1);
-      ctx.fillStyle = e.shortcut ? EDGE.shortcut : EDGE.normal;
-      ctx.beginPath(); ctx.moveTo(mx + 8 * Math.cos(ang), my + 8 * Math.sin(ang));
-      ctx.lineTo(mx + 4 * Math.cos(ang + 2.5), my + 4 * Math.sin(ang + 2.5));
-      ctx.lineTo(mx + 4 * Math.cos(ang - 2.5), my + 4 * Math.sin(ang - 2.5));
-      ctx.closePath(); ctx.fill();
+      // 왜: 화살촉은 **단방향 엣지에만** 그린다. 양방향에 그리면 저작 방향(from→to)이
+      //   진행 방향처럼 보여 일방통행으로 읽힌다 — 실제로 그 오해가 났다 (2026-09-06).
+      //   씨앗은 18개 중 17개가 양방향이라 화살표가 거의 사라지는데, 그게 사실에 맞는다:
+      //   일방통행이 예외이므로 예외만 표시한다.
+      if (!e.bidirectional) {
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, ang = Math.atan2(y2 - y1, x2 - x1);
+        ctx.fillStyle = e.shortcut ? EDGE.shortcut : EDGE.normal;
+        ctx.beginPath(); ctx.moveTo(mx + 8 * Math.cos(ang), my + 8 * Math.sin(ang));
+        ctx.lineTo(mx + 4 * Math.cos(ang + 2.5), my + 4 * Math.sin(ang + 2.5));
+        ctx.lineTo(mx + 4 * Math.cos(ang - 2.5), my + 4 * Math.sin(ang - 2.5));
+        ctx.closePath(); ctx.fill();
+      }
     }
     for (const n of nodes) {
       const cx = n.x * CELL + CELL / 2, cy = (h - 1 - n.y) * CELL + CELL / 2;

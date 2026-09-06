@@ -14,6 +14,7 @@ import { openFile, saveFile, saveFileAs } from '../../io/file.js';
 import type { FileSystemFileHandle } from '../../io/file.js';
 import { copyText } from '../../io/clipboard.js';
 import { showSaveErrorDialog } from './dialogs.js';
+import { mountHelpButton } from './help.js';
 
 // 저장 핸들 — File System Access API 핸들을 모듈 변수로 유지한다 (EditorState 에 두지 않음)
 let _saveHandle: FileSystemFileHandle | null = null;
@@ -130,4 +131,7 @@ export function mountTopbar(store: Store, container: HTMLElement): void {
   copyBtn.onclick = doCopy;
   window.addEventListener('pmf-copy-toon', () => doCopy());
   container.append(copyBtn);
+
+  // 왜 마지막인가: 파일 버튼들 오른쪽 끝에 둔다. 도움말은 자주 안 누르지만 항상 같은 자리에 있어야 한다.
+  mountHelpButton(container);
 }

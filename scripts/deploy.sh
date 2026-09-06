@@ -37,12 +37,22 @@ ssh "$HOST" "set -e
 echo "[deploy] 올렸다. 확인:"
 # 왜 확인까지 하는가: "배포했다" 와 "브라우저에서 열린다" 는 다르다. 인증서·권한·헤더 중
 #   하나만 어긋나도 기획자에게는 안 되는 URL 이 간다.
+# 왜 --resolve 폴백이 있나: 이 PC 의 ISP 리졸버(KT)가 pmf 이름을 간헐적으로 잃는다
+#   (처음 조회가 NXDOMAIN 이었을 때의 음성 캐시). 서버는 멀쩡한데 배포가 실패한 것처럼
+#   보이면 다음 사람이 엉뚱한 데를 파게 된다 — 로컬 DNS 문제라고 분명히 말한다.
+HOSTNAME_ONLY="${URL#https://}"; HOSTNAME_ONLY="${HOSTNAME_ONLY%%/*}"
+RESOLVE_IP="${PMF_DEPLOY_IP:-49.247.204.208}"
 if curl -fsSI --max-time 20 "$URL" > /tmp/pmf-deploy-headers.txt 2>&1; then
   grep -iE '^(HTTP/|cache-control|content-length|content-type)' /tmp/pmf-deploy-headers.txt || true
   grep -qi 'cache-control:.*no-cache' /tmp/pmf-deploy-headers.txt \
     || echo "[deploy] ⚠️ Cache-Control: no-cache 가 없다. Caddyfile 을 확인하라 (SDD-01 §9)."
   echo "[deploy] ✅ $URL"
+elif curl -fsSI --max-time 20 --resolve "$HOSTNAME_ONLY:443:$RESOLVE_IP" "$URL" > /tmp/pmf-deploy-headers.txt 2>&1; then
+  grep -iE '^(HTTP/|cache-control|content-length|content-type)' /tmp/pmf-deploy-headers.txt || true
+  echo "[deploy] ✅ 서버는 정상이다 ($URL)."
+  echo "[deploy] ⚠️ 다만 이 PC 가 $HOSTNAME_ONLY 이름을 못 푼다 — 로컬 DNS 캐시 문제다."
+  echo "[deploy]    배포는 끝났다. ipconfig /flushdns 후 잠시 뒤 다시 열어 보라."
 else
-  echo "[deploy] ⚠️ $URL 을 열지 못했다. DNS·인증서·Caddy 사이트 블록을 확인하라."
+  echo "[deploy] ⚠️ $URL 을 열지 못했다. IP 로도 안 된다 — 인증서·Caddy 사이트 블록을 확인하라."
   exit 1
 fi

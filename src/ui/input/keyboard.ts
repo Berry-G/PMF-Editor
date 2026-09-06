@@ -8,6 +8,10 @@ import type { Store, ToolId } from '../state.js';
 import { View } from '../canvas/view.js';
 import { PALETTE_ORDER } from '../../core/model/cell.js';
 
+import { showHelp, closeHelp, isHelpOpen } from '../panels/help.js';
+
+function dialogsEl(): HTMLElement | null { return document.querySelector<HTMLElement>('#dialogs'); }
+
 const TOOL_KEYS: Record<string, ToolId> = { b: 'brush', l: 'line', r: 'rect', f: 'fill', m: 'select', i: 'eyedropper', n: 'node', e: 'edge', v: 'object' };
 
 function decSize(s: 1 | 3 | 5): 1 | 3 | 5 { return s === 5 ? 3 : s === 3 ? 1 : 1; }
@@ -30,6 +34,9 @@ export function mountKeyboard(store: Store, view: View): void {
     if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) { e.preventDefault(); dispatchEvent(new Event('pmf-paste')); return; }
     // Delete: 선택 삭제
     if (e.key === 'Delete' || e.key === 'Del') { e.preventDefault(); dispatchEvent(new Event('pmf-delete')); return; }
+    // 왜 여기가 먼저인가: 도움말이 떠 있으면 Esc 는 선택 해제가 아니라 창 닫기여야 한다.
+    if (e.key === '?' || e.key === 'F1') { e.preventDefault(); const d = dialogsEl(); if (d) showHelp(d); return; }
+    if (e.key === 'Escape' && isHelpOpen()) { const d = dialogsEl(); if (d) closeHelp(d); return; }
     if (e.ctrlKey && e.key === '0') { e.preventDefault(); view.zoom = 1; view.panX = 0; view.panY = 0; store.notifyViewChanged(); return; }
     if (e.ctrlKey && e.key === '1') { e.preventDefault(); view.zoom = 1; store.notifyViewChanged(); return; }
     const n = Number(e.key);
