@@ -98,7 +98,21 @@ export interface StageDocument {
 |---|---|---|
 | `id` | `^[A-Za-z_][A-Za-z0-9_]*$`, 문서 안에서 유일 | 게임의 GameObject 이름이 된다. `burst.triggerNodeIds` 가 **이 문자열로 정확 일치** 매칭한다 (`MotherSpawner.cs:142` `PathGraph.FindByName`). 툴은 **절대 재번호하지 않는다** — ADR-E06 |
 | `x`,`y` | 셀 좌표. 게임이 셀 중심으로 스냅한다 (`PathNode.WorldPosition`) | 소수 좌표는 의미가 없으므로 정수만 |
-| `role` | `start` 정확히 1개 · `exit` 1개 이상(게임은 첫 번째만 씀) · `branch` · `waypoint` | PLAN 초안의 `-` 는 TOON 이 인용을 요구해 폐기. `branch` 는 도로 밖에 있어도 되는 노드 (씨앗의 `B01_branch`, `B02_branch` — 아군 행군용 분기) |
+| `role` | `start` 정확히 1개 · `exit` 1개 이상(게임은 첫 번째만 씀) · `branch` · `waypoint` | PLAN 초안의 `-` 는 TOON 이 인용을 요구해 폐기. `branch` 는 도로 밖에 있어도 되는 노드 (씨앗의 `B01_branch`, `B02_branch`). **의도는 아군 행군용이었지만 게임에서 실제로 쓰이지 않는다** — 2026-09-06 확인, 아래 참조 |
+
+> **`branch` 노드는 현재 죽은 데이터다 (2026-09-06 조사).**
+> 게임에서 `PathAgent.Ally` 를 쓰는 곳은 `Village.cs:46` 의 `FindNearestNode(pos, PathAgent.Ally)` 하나뿐이고,
+> 그 결과인 `Village.DepartureNode` 를 **읽는 코드가 없다.** 아군은 `PathGraph` 를 아예 쓰지 않는다 —
+> `AllyUnit` 은 `AllyWalkGraph.TryFindPath`(장애물 모서리 가시성 그래프)로만 걷는다 (`AllyUnit.cs:364,407`).
+>
+> 그래서 씨앗의 `B01_branch(12,8)` `B02_branch(20,10)` 이 지금 하는 일은:
+> - `allowed=All` 이라 그래프에 남아 `N04–N05`, `N08–N09` 와 **삼각형(우회로)** 을 만든다.
+>   비용은 거리 자동 계산이라 우회가 더 길다 → 다익스트라가 고르지 않는다.
+> - 게임 테스트 `PathGraphTests.Branch_CheaperSideChosen` 의 픽스처.
+>
+> **역할(`branch`) 자체는 스키마에 남긴다** — 게임 `PathNodeRole` 에 `Branch = 3` 이 있고(SDD-05 §5),
+> 아군 행군을 그래프로 옮기는 기획이 살아나면 쓰인다. 다만 **씨앗에 두 개가 꼭 있어야 할 이유는 없다.**
+> 지울지는 게임 쪽 결정이다(씬·테스트가 딸려 온다).
 
 보호대상 시작 위치 = `start` 노드 셀. 모체 시작 위치 = **같은 셀** (`GreyboxMapData.cs:62-66` — "추격자는 같은 곳에서 출발해야 뒤쫓는 그림이 된다"). 별도 필드를 두지 않는다 (ADR-E05).
 
