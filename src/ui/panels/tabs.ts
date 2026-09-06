@@ -8,8 +8,8 @@
 import type { Store } from '../state.js';
 import { UI, ACTOR } from '../../core/palette.js';
 import { setField, setTable, type FieldPath } from '../../core/commands/fields.js';
-import { setEdgeProps } from '../../core/commands/edges.js';
-import { setNodeRole } from '../../core/commands/nodes.js';
+import { setEdgeProps, deleteEdge } from '../../core/commands/edges.js';
+import { setNodeRole, deleteNode } from '../../core/commands/nodes.js';
 import { simulate } from '../../core/sim/simulate.js';
 import type { SimParams } from '../../core/sim/params.js';
 import { DEFAULT_SIM_PARAMS } from '../../core/sim/params.js';
@@ -120,6 +120,17 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
     } else if (id === 'path') {
       section('경로');
 
+      // 왜 표에 삭제 버튼을 두는가: 캔버스에서 엣지를 픽셀로 조준하는 건 어렵다. 표는 목록이라
+      //   틀릴 수가 없다 — 지울 대상을 이름으로 고른다 (2026-09-06 사용자 피드백).
+      const delBtn = (label: string, run: () => void): HTMLElement => {
+        const td = document.createElement('td');
+        const b = document.createElement('button');
+        b.textContent = '×'; b.title = label;
+        b.style.cssText = 'padding:0 6px;line-height:1.2';
+        b.onclick = (ev) => { ev.stopPropagation(); if (confirm(label)) { store.state.history.beginStroke(); run(); store.state.history.endStroke(); } };
+        td.append(b); return td;
+      };
+
       // 도로에서 경로 초안 만들기. **런타임 추론이 아니라 저작 보조다** — 결과는 파일에
       //   명시적 노드·엣지로 저장되고, 기획자가 그 위에 분기·지름길을 얹는다.
       //   게임은 도로에서 그래프를 추론하지 않는다 (게임 TASKS-P1-prototype.md:568).
@@ -155,7 +166,7 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
       };
       body.append(genBtn);
       const nt = document.createElement('table'); nt.style.fontSize = '12px';
-      nt.innerHTML = '<tr><th>ID</th><th>역할</th><th>위치</th></tr>';
+      nt.innerHTML = '<tr><th>ID</th><th>역할</th><th>위치</th><th></th></tr>';
       const ROLES = ['waypoint', 'start', 'exit', 'branch'] as const;
       for (const n of d.path.nodes) {
         const tr = document.createElement('tr'); tr.style.cursor = 'pointer';
@@ -168,11 +179,16 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
         sel.onclick = (e) => e.stopPropagation();
         roleCell.append(sel);
         const posCell = document.createElement('td'); posCell.textContent = '(' + n.x + ',' + n.y + ')';
-        tr.append(idCell, roleCell, posCell); nt.append(tr);
+        const selN = store.state.selection;
+        if (selN.kind === 'nodes' && selN.ids.includes(n.id)) tr.style.background = UI.selection + '30';
+        tr.append(idCell, roleCell, posCell,
+          delBtn(`노드 ${n.id} 을(를) 지운다. 붙은 엣지와 버스트 트리거 참조도 함께 사라진다.`,
+                 () => store.dispatch(deleteNode(store.state.history.doc, n.id))));
+        nt.append(tr);
       }
       body.append(nt);
       const et = document.createElement('table'); et.style.fontSize = '12px';
-      et.innerHTML = '<tr><th>from</th><th>→</th><th>to</th><th>허용</th><th>양방향</th><th>지름길</th></tr>';
+      et.innerHTML = '<tr><th>from</th><th>→</th><th>to</th><th>허용</th><th>양방향</th><th>지름길</th><th></th></tr>';
       d.path.edges.forEach((e, i) => {
         const tr = document.createElement('tr'); tr.style.cursor = 'pointer';
         tr.onclick = () => store.update((_s) => ({ selection: { kind: 'edge' as const, index: i } }));
@@ -200,7 +216,11 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
         sc.onchange = () => { store.state.history.beginStroke(); store.dispatch(setEdgeProps(i, { shortcut: sc.checked })); store.state.history.endStroke(); };
         sc.onclick = (ev) => ev.stopPropagation();
         sCell.append(sc);
-        tr.append(f, ar, t, aCell, bCell, sCell); et.append(tr);
+        const selE = store.state.selection;
+        if (selE.kind === 'edge' && selE.index === i) tr.style.background = UI.selection + '30';
+        tr.append(f, ar, t, aCell, bCell, sCell,
+          delBtn(`엣지 ${e.from} → ${e.to} 을(를) 지운다.`, () => store.dispatch(deleteEdge(i))));
+        et.append(tr);
       });
       body.append(et);
     } else if (id === 'spawn') {

@@ -259,12 +259,15 @@ export function mountContextMenu(canvas: HTMLCanvasElement, store: Store, view: 
     e.preventDefault();
 
     const doc = store.state.history.doc;
-    const { x, y } = view.screenToCell(e.offsetX, e.offsetY, doc.map);
-    const node = hitTestNode(x, y, doc.path.nodes);
+    // 소수 좌표로 집는다 — 정수 셀로 부르면 엣지 임계값이 0.19칸이 되어 못 맞춘다.
+    const sc = view.screenToCell(e.offsetX, e.offsetY, doc.map);
+    const x = sc.x, y = sc.y;
+    const px = sc.x + sc.fx, py = sc.y + (1 - sc.fy);
+    const node = hitTestNode(px, py, doc.path.nodes);
     // 노드를 먼저 본다 — 노드는 엣지 위에 그려지므로 엣지가 이기면 노드를 못 고른다.
     const items = node
       ? nodeItems(store, node)
-      : (() => { const ei = hitTestEdge(x, y, doc.path.nodes, doc.path.edges); return ei >= 0 ? edgeItems(store, ei) : emptyItems(store, x, y); })();
+      : (() => { const ei = hitTestEdge(px, py, doc.path.nodes, doc.path.edges); return ei >= 0 ? edgeItems(store, ei) : emptyItems(store, x, y); })();
 
     render(items, e.clientX, e.clientY);
   });

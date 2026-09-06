@@ -5,7 +5,7 @@
  * 근거: SDD-03 §3 [D-03-03], SDD-09 §10 [D-09-10]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
-import { hitTestNode } from '../hittest.js';
+import { hitTestNode, pointerXY } from '../hittest.js';
 import { addEdge, deleteEdge } from '../../../core/commands/edges.js';
 import type { PathNode } from '../../../core/model/stage.js';
 
@@ -16,7 +16,7 @@ export class EdgeTool implements Tool {
   onDown(p: PointerInfo, ctx: ToolContext): void {
     // 히트 테스트
     const nodes = ctx.store.state.history.doc.path.nodes;
-    const node = hitTestNode(p.cell.x, p.cell.y, nodes);
+    const node = hitTestNode(pointerXY(p.cell, p.fx, p.fy).px, pointerXY(p.cell, p.fx, p.fy).py, nodes);
     if (!node) {
       // 빈 곳: 선택 해제
       this.firstNode = null;

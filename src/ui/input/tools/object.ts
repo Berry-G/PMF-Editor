@@ -5,7 +5,7 @@
  * 근거: SDD-03 §3 [D-03-03], SDD-09 §10 [D-09-10]
  */
 import type { Tool, PointerInfo, ToolContext } from './tool.js';
-import { hitTestNode, hitTestEdge } from '../hittest.js';
+import { hitTestNode, hitTestEdge, pointerXY } from '../hittest.js';
 
 import { cellAt } from '../../../core/model/map.js';
 import { Cell } from '../../../core/model/cell.js';
@@ -19,7 +19,7 @@ export class ObjectTool implements Tool {
     const edges = ctx.store.state.history.doc.path.edges;
 
     // 1. 노드 히트 (10px)
-    const node = hitTestNode(p.cell.x, p.cell.y, nodes);
+    const node = hitTestNode(pointerXY(p.cell, p.fx, p.fy).px, pointerXY(p.cell, p.fx, p.fy).py, nodes);
     if (node) {
       if (p.ctrl) {
         const cur = ctx.store.state.selection;
@@ -36,7 +36,7 @@ export class ObjectTool implements Tool {
     }
 
     // 2. 엣지 히트 (선분 거리 6px)
-    const edgeIndex = hitTestEdge(p.cell.x, p.cell.y, nodes, edges);
+    const edgeIndex = hitTestEdge(pointerXY(p.cell, p.fx, p.fy).px, pointerXY(p.cell, p.fx, p.fy).py, nodes, edges);
     if (edgeIndex !== -1) {
       ctx.store.update((_s) => ({ selection: { kind: 'edge', index: edgeIndex } }));
       return;

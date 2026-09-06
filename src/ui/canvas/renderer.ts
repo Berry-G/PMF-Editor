@@ -194,8 +194,13 @@ private drawObjects(doc: StageDocument, issues: Issue[] = []): void {
     if (sn) {
       const cx = sn.x * CELL + CELL / 2, cy = (h - 1 - sn.y) * CELL + CELL / 2;
       const es = CELL * ACTOR_SCALE.escortee / 2, ms = CELL * ACTOR_SCALE.mother / 2;
+      // 왜 -ms 인가: `fillRect` 의 첫 두 인자는 **좌상단**이다. 예전 코드는 (cx+4, cy+4) 였는데
+      //   그러면 중심이 cx+28 로 밀려 거의 한 칸 어긋난 자리에 모체가 그려졌다
+      //   (2026-09-06 사용자 보고). 둘은 같은 셀에서 출발한다 — ADR-E05.
+      // 왜 모체를 먼저 그리는가: 모체 사각(1.5칸)이 보호대상 원(0.9칸)보다 크다. 나중에 그리면
+      //   보호대상을 통째로 덮는다. 큰 것을 뒤로 보내야 둘 다 보인다.
+      ctx.fillStyle = ACTOR.mother; ctx.fillRect(cx - ms, cy - ms, ms * 2, ms * 2);
       ctx.fillStyle = ACTOR.escortee; ctx.beginPath(); ctx.arc(cx, cy, es, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = ACTOR.mother; ctx.fillRect(cx + 4, cy + 4, ms * 2, ms * 2);
     }
     const en = nodes.find((n: PathNode) => n.role === "exit");
     if (en) {
