@@ -14,7 +14,8 @@ import { stageEquals } from '../model/equals.js';
 import { Cell } from '../model/cell.js';
 import { paintCells, pasteCells, type Clipboard } from './paint.js';
 import { resizeMap, setField, setTable } from './fields.js';
-import { addNode, moveNode, deleteNode, renameNode, setNodeRole } from './nodes.js';
+import { buildPathFromRoad } from '../geometry/roadpath.js';
+import { addNode, moveNode, deleteNode, renameNode, setNodeRole, replacePath } from './nodes.js';
 import { addEdge, deleteEdge, setEdgeProps } from './edges.js';
 import type { Command } from './command.js';
 import type { StageDocument } from '../model/stage.js';
@@ -56,6 +57,19 @@ describe('커맨드 왕복', () => {
   it('deleteNode N08 (4 edges)', () => { const d = clone(SEED); runRoundtrip('deleteNode', d, deleteNode(d, 'N08')); });
   it('renameNode', () => { const d = clone(SEED); runRoundtrip('renameNode', d, renameNode(d, 'N01', 'N01x')); });
   it('renameNode trigger ref', () => { const d = clone(SEED); const cmd = renameNode(d, 'N06', 'N06x'); const a = cmd.apply(d); expect(a.burst.triggerNodeIds).toContain('N06x'); runRoundtrip('renameNode', d, cmd); });
+  it('replacePath (도로에서 경로 만들기)', () => {
+    const d = clone(SEED);
+    const r = buildPathFromRoad(d.map, { x: 1, y: 9 }, { x: 30, y: 6 });
+    expect(r.ok, r.reason).toBe(true);
+    const cmd = replacePath(r.nodes, r.edges);
+    const after = cmd.apply(d);
+    // 통째로 갈아끼운다 — 분기·지름길이 사라지는 게 정상이고, 그건 UI 가 미리 경고한다.
+    expect(after.path.nodes.some(n => n.role === 'branch')).toBe(false);
+    expect(after.path.edges.some(e => e.shortcut)).toBe(false);
+    // burst.triggerNodeIds 는 건드리지 않는다 — 조용히 지우면 트리거를 잃은 줄도 모른다.
+    expect(after.burst.triggerNodeIds).toEqual(d.burst.triggerNodeIds);
+    runRoundtrip('replacePath', d, replacePath(r.nodes, r.edges));
+  });
   it('setNodeRole branch', () => { const d = clone(SEED); runRoundtrip('setNodeRole', d, setNodeRole(d, 'N01', 'branch')); });
   it('setNodeRole start 강등', () => { const d = clone(SEED); runRoundtrip('setNodeRole', d, setNodeRole(d, 'N05', 'start')); });
   it('addEdge', () => { const d = clone(SEED); runRoundtrip('addEdge', d, addEdge({ from: 'N01', to: 'N02', allowed: ['Escortee', 'Enemy', 'Ally'], bidirectional: true, shortcut: false })); });

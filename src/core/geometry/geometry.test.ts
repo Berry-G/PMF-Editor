@@ -15,6 +15,8 @@ import { computeReachability } from './reach.js';
 import { createMap } from '../model/map.js';
 import { Cell } from '../model/cell.js';
 import { decode } from '../toon/decode.js';
+import { buildPathFromRoad } from './roadpath.js';
+import { cellAt } from '../model/map.js';
 
 const m = createMap(8, 8, Cell.Buildable);
 
@@ -54,5 +56,53 @@ describe('computeReachability', () => {
     const reach = computeReachability(r.value.map);
     expect(reach.reachableBuildable).toBe(203);
     expect(reach.totalBuildable - reach.reachableBuildable).toBe(178);
+  });
+});
+describe('buildPathFromRoad (도로에서 경로 초안)', () => {
+  const __d = dirname(fileURLToPath(import.meta.url));
+  const decoded = decode(readFileSync(join(__d, '..', '..', '..', 'docs', 'examples', 'Stage_Greybox.toon'), 'utf8'));
+  if (!decoded.ok) throw new Error('씨앗 decode 실패');
+  const SEED = decoded.value;
+
+  // 씨앗으로 돈다 — 실제 맵에서 코너가 몇 개 나오는지가 이 함수의 값어치다.
+  it('씨앗: 시작(1,9)→탈출(30,6) 이 이어지고 코너마다 노드가 선다', () => {
+    const r = buildPathFromRoad(SEED.map, { x: 1, y: 9 }, { x: 30, y: 6 });
+    expect(r.ok, r.reason).toBe(true);
+    expect(r.nodes[0]!.role).toBe('start');
+    expect(r.nodes[r.nodes.length - 1]!.role).toBe('exit');
+    expect(r.nodes.length).toBeGreaterThan(2);
+    expect(r.edges.length).toBe(r.nodes.length - 1);
+  });
+
+  it('만든 엣지는 전부 축 정렬이고 사이가 모두 도로다 (V-P03 을 스스로 만족한다)', () => {
+    const r = buildPathFromRoad(SEED.map, { x: 1, y: 9 }, { x: 30, y: 6 });
+    expect(r.ok).toBe(true);
+    const byId = new Map(r.nodes.map(n => [n.id, n]));
+    for (const e of r.edges) {
+      const a = byId.get(e.from)!, b = byId.get(e.to)!;
+      expect(a.x === b.x || a.y === b.y, `${e.from}→${e.to} 가 대각선`).toBe(true);
+      const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y);
+      for (let x = a.x, y = a.y; ; x += dx, y += dy) {
+        expect(cellAt(SEED.map, x, y), `(${x},${y}) 가 도로가 아니다`).toBe(Cell.Road);
+        if (x === b.x && y === b.y) break;
+      }
+    }
+  });
+
+  it('지름길·분기는 만들지 않는다 — 도로만 봐서는 알 수 없다', () => {
+    const r = buildPathFromRoad(SEED.map, { x: 1, y: 9 }, { x: 30, y: 6 });
+    expect(r.edges.some(e => e.shortcut)).toBe(false);
+    expect(r.nodes.some(n => n.role === 'branch')).toBe(false);
+  });
+
+  it('도로가 아닌 칸을 주면 거절하고 이유를 말한다', () => {
+    const r = buildPathFromRoad(SEED.map, { x: 0, y: 0 }, { x: 30, y: 6 });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toContain('도로');
+  });
+
+  it('이어져 있지 않으면 거절한다', () => {
+    const r = buildPathFromRoad(SEED.map, { x: 1, y: 9 }, { x: 1, y: 9 });
+    expect(r.ok).toBe(false);
   });
 });

@@ -10,10 +10,26 @@
  * 근거: SDD-09 §8, SDD-08 §7, ADR-E06
  */
 import type { Command } from './command.js';
-import type { StageDocument, PathNode, XY } from '../model/stage.js';
+import type { StageDocument, PathNode, PathData, XY } from '../model/stage.js';
 
 export function addNode(node: PathNode): Command {
   return { label: '노드 추가 ' + node.id, apply(d: StageDocument) { return { ...d, path: { ...d.path, nodes: [...d.path.nodes, node] } }; }, revert(d: StageDocument) { return { ...d, path: { ...d.path, nodes: d.path.nodes.filter(n => n.id !== node.id) } }; } };
+}
+
+/**
+ * 경로 전체(노드+엣지)를 갈아끼운다. 도로에서 초안을 만들 때만 쓴다.
+ * 왜 통째로인가: 생성기는 노드 이름부터 다시 매기므로 부분 병합이 불가능하다. 무엇이 사라지는지는
+ *   **호출부가 미리 보여 주고 확인을 받는다** — 커맨드가 조용히 지우지 않게 하기 위해서다.
+ *   burst.triggerNodeIds 는 건드리지 않는다. 없는 노드를 가리키게 되면 V-P01 이 잡아 준다 —
+ *   조용히 지우면 기획자가 트리거를 잃은 줄도 모른다 (ADR-E08 의 정신).
+ */
+export function replacePath(nodes: PathNode[], edges: PathData['edges']): Command {
+  let prev: PathData | undefined;
+  return {
+    label: '도로에서 경로 만들기',
+    apply(d: StageDocument) { if (prev === undefined) prev = d.path; return { ...d, path: { nodes, edges } }; },
+    revert(d: StageDocument) { return prev === undefined ? d : { ...d, path: prev }; },
+  };
 }
 
 export function moveNode(id: string, to: XY): Command {

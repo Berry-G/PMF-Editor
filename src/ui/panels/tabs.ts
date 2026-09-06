@@ -14,6 +14,8 @@ import { simulate } from '../../core/sim/simulate.js';
 import type { SimParams } from '../../core/sim/params.js';
 import { DEFAULT_SIM_PARAMS } from '../../core/sim/params.js';
 import { showResizeDialog } from './dialogs.js';
+import { buildPathFromRoad } from '../../core/geometry/roadpath.js';
+import { replacePath } from '../../core/commands/nodes.js';
 import { Cell, CELL_LABEL } from '../../core/model/cell.js';
 import { countCells } from '../../core/model/map.js';
 import { computeReachability } from '../../core/geometry/reach.js';
@@ -53,6 +55,9 @@ export function tabFieldValues(doc: import('../../core/model/stage.js').StageDoc
     'toggles.alliesCanDieWhileMarching': doc.toggles.alliesCanDieWhileMarching, 'toggles.enemiesTargetAllies': doc.toggles.enemiesTargetAllies,
   };
 }
+
+/** 대화상자 줄바꿈. 개행 이스케이프를 소스에 흩어 두지 않으려고 상수로 둔다. */
+const NL = String.fromCharCode(10);
 
 export function mountTabs(store: Store, nav: HTMLElement, body: HTMLElement): void {
   // fld 는 render 안에서 정의됨 (V = tabFieldValues(d) 이후, M-2/P-3).
@@ -114,6 +119,41 @@ body.innerHTML = ''; body.style.cssText = 'overflow-y:auto;max-height:200px;padd
       body.append(resizeBtn);
     } else if (id === 'path') {
       section('경로');
+
+      // 도로에서 경로 초안 만들기. **런타임 추론이 아니라 저작 보조다** — 결과는 파일에
+      //   명시적 노드·엣지로 저장되고, 기획자가 그 위에 분기·지름길을 얹는다.
+      //   게임은 도로에서 그래프를 추론하지 않는다 (게임 TASKS-P1-prototype.md:568).
+      const genBtn = document.createElement('button');
+      genBtn.textContent = '도로에서 경로 만들기';
+      genBtn.title = '시작 노드에서 탈출 노드까지 도로를 따라가며 꺾이는 칸마다 노드를 찍는다';
+      genBtn.onclick = () => {
+        const doc = store.state.history.doc;
+        const sn = doc.path.nodes.find(n => n.role === 'start');
+        const en = doc.path.nodes.find(n => n.role === 'exit');
+        if (!sn || !en) { alert(['시작 노드와 탈출 노드를 먼저 놓아라.', '캔버스 빈 칸에서 우클릭 → "여기에 시작점" / "여기에 탈출점".'].join(NL)); return; }
+        const r = buildPathFromRoad(doc.map, { x: sn.x, y: sn.y }, { x: en.x, y: en.y });
+        if (!r.ok) { alert('만들 수 없다: ' + r.reason); return; }
+
+        // 무엇이 사라지는지 먼저 보여 준다. 경로를 통째로 갈아끼우므로 손으로 얹은 것이 날아간다.
+        const lostBranch = doc.path.nodes.filter(n => n.role === 'branch').length;
+        const lostShortcut = doc.path.edges.filter(e => e.shortcut).length;
+        const newIds = new Set(r.nodes.map(n => n.id));
+        const orphanTriggers = doc.burst.triggerNodeIds.filter(t => !newIds.has(t));
+        const lines: string[] = [
+          '노드 ' + r.nodes.length + '개 · 엣지 ' + r.edges.length + '개를 만든다.',
+          '지금 경로(노드 ' + doc.path.nodes.length + ' · 엣지 ' + doc.path.edges.length + ')는 사라진다.',
+        ];
+        if (lostBranch > 0) lines.push('분기 노드 ' + lostBranch + '개가 사라진다 — 다시 찍어야 한다.');
+        if (lostShortcut > 0) lines.push('지름길 ' + lostShortcut + '개가 사라진다 — 다시 이어야 한다.');
+        if (orphanTriggers.length > 0) lines.push('버스트 트리거 ' + orphanTriggers.join(', ') + ' 가 없는 노드를 가리키게 된다 (V-P01 이 잡는다).');
+        lines.push('', '진행할까?');
+        if (!confirm(lines.join(NL))) return;
+
+        store.state.history.beginStroke();
+        store.dispatch(replacePath(r.nodes, r.edges));
+        store.state.history.endStroke();
+      };
+      body.append(genBtn);
       const nt = document.createElement('table'); nt.style.fontSize = '12px';
       nt.innerHTML = '<tr><th>ID</th><th>역할</th><th>위치</th></tr>';
       const ROLES = ['waypoint', 'start', 'exit', 'branch'] as const;
