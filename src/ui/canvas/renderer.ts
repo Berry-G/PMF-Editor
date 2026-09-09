@@ -3,7 +3,7 @@
  * 왜 이 구조인가: SDD-09 §9-2 레이어 구조. 합성은 rAF 한 번에.
  *   좌표 변환은 View 에만. 색은 core/palette.ts 에서만.
  * 바꾸면 안 되는 것: imageSmoothingEnabled = false. 격자 S>=8, 눈금 S>=16.
- * 근거: SDD-09 §9 [D-09-09], SDD-01 §4 [D-01-04]
+ * 근거: SDD-09 §9 [D-09-09], SDD-01 §4 [D-01-04], ADR-E13
  */
 import type { Store } from '../state.js';
 import type { EditorState } from '../state.js';
@@ -17,6 +17,15 @@ import type { Issue } from '../../core/validate/index.js';
 import type { Reachability } from '../../core/geometry/reach.js';
 
 const CELL = CELL_PX;
+
+/** Unity SceneParts.BuildActors 가 Village_N 을 붙이는 순서와 같다. */
+export function villagesInUnityOrder(map: MapData): Array<{ x: number; y: number }> {
+  const villages: Array<{ x: number; y: number }> = [];
+  for (let y = map.height - 1; y >= 0; y--) {
+    for (let x = 0; x < map.width; x++) if (cellAt(map, x, y) === Cell.VillageSlot) villages.push({ x, y });
+  }
+  return villages;
+}
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -185,12 +194,17 @@ private drawObjects(doc: StageDocument, issues: Issue[] = [], dimStart = false):
         ctx.fillText('⚡', cx, cy - 12);
       }
     }
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (cellAt(doc.map, x, y) === Cell.VillageSlot) {
+    // 출처: SceneParts.cs:381-395 — y 내림차순/x 오름차순으로 Village_N 생성.
+    for (const [index, village] of villagesInUnityOrder(doc.map).entries()) {
+        const { x, y } = village;
         const cx = x * CELL + CELL / 2, cy = (h - 1 - y) * CELL + CELL / 2;
-        const s = CELL * ACTOR_SCALE.village / 2;
+        // 왜: 게임 액터의 1.4칸 크기를 그대로 그리면 인접 V 셀이 한 덩어리 마을처럼 합쳐진다.
+        //   저작 계약은 V 한 칸 = 마을 하나이므로 셀 안쪽 마커와 게임 생성 순번으로 개수를 드러낸다 (ADR-E13).
+        const s = CELL * 0.68 / 2;
         ctx.fillStyle = ACTOR.village; ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
-      }
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5; ctx.strokeRect(cx - s, cy - s, s * 2, s * 2);
+        ctx.fillStyle = UI.text; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('V' + (index + 1), cx, cy);
     }
     const sn = nodes.find((n: PathNode) => n.role === "start");
     if (sn) {
@@ -296,9 +310,4 @@ private drawObjects(doc: StageDocument, issues: Issue[] = [], dimStart = false):
     ctx.fillRect(sx, sy, ms * 2 * (S / CELL), ms * 2 * (S / CELL));
   }
 }
-
-
-
-
-
 

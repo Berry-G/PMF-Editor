@@ -6,7 +6,7 @@
  *   기획자가 읽을 때 어느 항목에 대한 설명인지 알 수 있다.
  * 바꾸면 안 되는 것: 섹션·키 순서, formatNumber, rows y 뒤집기.
  *   주석 문구·들여쓰기를 바꾸면 씨앗도 같이 바꾼다.
- * 근거: SDD-02 §6-1 [D-02-07/08], SDD-09 §2 [D-09-02]
+ * 근거: SDD-02 §6-1 [D-02-07/08], SDD-09 §2 [D-09-02], ADR-E13
  */
 import { CELL_TO_CHAR, Cell as C } from '../model/cell.js';
 import { SCHEMA } from '../schema.js';
@@ -169,4 +169,16 @@ export function encode(doc: StageDocument, opts: EncodeOptions): string {
   out.push('schema: ' + SCHEMA); out.push('name: ' + str(doc.name)); out.push('');
   encodeMap(doc.map, out); out.push(''); encodePath(doc.path, out); out.push(''); encodeSpawn(doc.spawn, out); out.push(''); encodeBurst(doc.burst, out); out.push(''); encodeEconomy(doc.economy, out); out.push(''); encodeEscortee(doc.escortee, out); out.push(''); encodeMother(doc.mother, out); out.push(''); encodePresentation(doc.presentation, out); out.push(''); encodeToggles(doc.toggles, out);
   return out.join('\n') + '\n';
+}
+
+/**
+ * 사용자가 저장·복사하는 파일에는 실제 생성 도구를 밝히고, 씨앗에만 맞는 원본 출처 주석은 뺀다.
+ * 정규 encode 는 Unity Exporter 와의 바이트 비교 기준이므로 그대로 둔다 (ADR-E13).
+ */
+export function encodeForDelivery(doc: StageDocument, opts: EncodeOptions): string {
+  const lines = encode(doc, opts).split('\n');
+  // 왜: 버전은 주석 한 줄이어야 한다. 빌드 메타데이터가 잘못돼도 TOON 행을 주입할 수 없어야 한다.
+  const version = opts.toolVersion.replace(/[\r\n\u2028\u2029]+/g, ' ').trim() || 'unknown';
+  lines.splice(2, 2, '# 생성 도구: PMF Editor ' + version);
+  return lines.join('\n');
 }

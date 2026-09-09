@@ -109,6 +109,11 @@ section('map', …) ; section('path', …) ; section('spawn', …) ; section('bu
 section('economy', …) ; section('escortee', …) ; section('mother', …) ; section('presentation', …) ; section('toggles', …)
 return out.join('\n') + '\n'
 ```
+위 골격은 Unity Exporter와 씨앗 바이트 비교에 쓰는 **정규 `encode`** 다. 사용자 저장·복사는
+`encodeForDelivery` 를 사용한다. 이 함수는 H3/H4의 씨앗 전용 게임 출처를
+`# 생성 도구: PMF Editor <toolVersion>` 한 줄로 바꾸며 CR/LF/U+2028/U+2029는 공백으로 만든다
+(ADR-E13). 스키마와 나머지 정규 출력은 같다.
+
 섹션마다 앞에 빈 줄 하나, 씨앗 파일과 **같은 위치에 같은 문구의 주석** 을 낸다 (주석 문구는 `encode.ts` 상단 상수 배열 `SECTION_COMMENTS` 하나에 모아 둔다 — 골든 파일과 동기화 지점이 한 곳이어야 한다).
 씨앗 `docs/examples/Stage_Greybox.toon` 이 곧 기대 출력이다. **주석 문구를 바꾸면 씨앗도 같이 바꾼다.**
 
@@ -542,7 +547,7 @@ fitToMap(map, vw, vh):     zoom = clamp(min(vw/(map.width*CELL_PX), vh/(map.heig
 |---|---|---|
 | tiles | `history.doc.map.cells` 참조가 바뀌면. 변경된 셀의 경계 사각형만 (`paintCells` 의 delta 범위를 Store 가 `dirtyRect` 로 전달; 없으면 전체) | `fillRect(x*32, (h-1-y)*32, 32, 32, COLOR[cell])`. Empty 는 그리지 않는다(배경이 보인다) |
 | reach/issues (overlay) | `reach`·`issues`·`selection` 이 바뀌면 전체 | 도달 가능 B 에 마을 구역 색 α0.25, 도달 불가 B 에 빗금(대각선 4px 간격), 오류 셀 빨간 테두리 2px, 경고 노란, 선택 영역 파란 점선 |
-| objects (path+objects) | `path` 참조 또는 선택이 바뀌면 전체 | 엣지(선 2px, 화살촉 8px, 지름길은 `setLineDash([8,8])`), 노드(원 r=8, role 색), 트리거 노드에 ⚡ 글자, 마을 마커(1.4셀 사각), start 에 하트+모체 사각, exit 에 노란 테두리 |
+| objects (path+objects) | `path` 참조 또는 선택이 바뀌면 전체 | 엣지(선 2px, 화살촉 8px, 지름길은 `setLineDash([8,8])`), 노드(원 r=8, role 색), 트리거 노드에 ⚡ 글자, 마을은 셀 안쪽 0.68셀 사각+Unity 생성 순번 `Vn`, start 에 하트+모체 사각, exit 에 노란 테두리 |
 | sim | `sim` 또는 재생 시각이 바뀌면 전체 | 궤적(폴리라인), 현재 위치 마커 |
 
 합성 (`Renderer.frame`):
@@ -583,11 +588,14 @@ if showGrid && S >= 8: 셀 경계선 (1px, UI.grid), 5칸마다 UI.gridMajor, �
 ## 11. 파일 흐름 (`io` + `topbar`) `[D-09-11]`
 
 ```
-열기: openFile() → decode(text) → ok ? history.replace(doc); fileName; fileHandle; clearDraft()
-                                 : 다이얼로그(`${line}행: ${message}`), 문서 유지
-저장: issues = validate(doc,{mode:'tool',catalog}); text = encode(doc,{toolVersion, issues})
+열기: dirty 면 먼저 폐기 확인 → openFile() → decode(text) → ok ? history.replace(doc); fileName; fileHandle; clearDraft()
+                                                     : 다이얼로그(`${line}행: ${message}`), 문서 유지
+      AbortError만 조용히 취소. 권한·읽기 오류는 표시한다.
+저장/다른 이름 저장/복사: issues = validate(현재 doc,{mode:'tool',catalog}); text = encodeForDelivery(doc,{toolVersion, issues})
+      요약 = 내부 name + 바깥 fileName + Unity 대상 3개 + V 수 + burst trigger 수 + 검증 심각도별 수
       if issues.some(error) → 다이얼로그 "검증 실패 N건. 그래도 저장한다 (임포트는 되지 않는다)" [저장] [취소]
-      handle = await saveFile(text, fileHandle, `${doc.name}.toon`); if handle → fileHandle; history.markSaved(); clearDraft()
+      handle = await saveFile(text, fileHandle, 확장자를 한 번만 붙인 fileName)
+      저장 중 문서가 바뀌지 않았을 때만 history.markSaved(); clearDraft(). I/O 실패는 표시한다.
 초안: Store 가 history 변경 5초 디바운스로 saveDraft(encode(doc), fileName). 시작 시 loadDraft() 가 있고 savedAt 이 1시간 이내면 "복구할까요?" [복구] [버림]
 beforeunload: history.dirty 면 브라우저 기본 확인
 ```

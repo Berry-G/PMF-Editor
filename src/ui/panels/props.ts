@@ -1,7 +1,7 @@
 /**
  * 목적: 속성 패널 (#props). 선택 대상(노드·엣지·마을·없음)의 속성을 표시·편집.
  * 왜 이 구조인가: SDD-03 §5. setField/renameNode/setNodeRole/setEdgeProps 커맨드를 dispatch.
- *   id 변경은 반드시 renameNode 로 (엣지·triggerNodeIds 함께 갱신).
+ *   id 변경은 반드시 renameNode 로 (엣지·triggerNodeIds 함께 갱신). 마을 수치는 perVillage를 쓴다.
  * 바꾸면 안 되는 것: id 편집에 renameNode 사용. shortcut on 시 allowed 잠김.
  * 근거: SDD-03 §5 [D-03-05], SDD-09 §8 [D-09-08]
  */
@@ -66,11 +66,18 @@ function renderEdge(sel: Selection & { kind: 'edge' }, store: Store, doc: StageD
   container.append(div);
 }
 
+export function villageReachability(doc: StageDocument, x: number, y: number): { selected: number; reachable: number; total: number } {
+  const reach = computeReachability(doc.map);
+  const village = reach.perVillage.find(v => v.village.x === x && v.village.y === y);
+  return { selected: village?.buildable ?? 0, reachable: reach.reachableBuildable, total: reach.totalBuildable };
+}
+
 function renderVillage(sel: Selection & { kind: 'village' }, _store: Store, doc: StageDocument, container: HTMLElement): void {
   const div = document.createElement('div'); div.style.padding = '4px 8px';
   const p = document.createElement('p'); p.textContent = '마을 (' + sel.x + ',' + sel.y + ')'; div.append(p);
-  const r = computeReachability(doc.map);
-  const c = document.createElement('p'); c.textContent = '전체 도달 가능 B: ' + r.reachableBuildable + ' / ' + r.totalBuildable; c.style.color = UI.textDim; div.append(c);
+  const r = villageReachability(doc, sel.x, sel.y);
+  const selected = document.createElement('p'); selected.textContent = '이 마을의 도달 가능 B: ' + r.selected + ' / ' + r.total; div.append(selected);
+  const all = document.createElement('p'); all.textContent = '모든 마을 합집합: ' + r.reachable + ' / ' + r.total; all.style.color = UI.textDim; div.append(all);
   container.append(div);
 }
 

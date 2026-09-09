@@ -219,6 +219,7 @@ export function decode(text: string): Result<StageDocument, DecodeError>;
 // encode.ts
 export interface EncodeOptions { toolVersion: string; issues?: ReadonlyArray<Issue> }   // issues 가 있고 error 가 있으면 머리 주석
 export function encode(doc: StageDocument, opts: EncodeOptions): string;
+export function encodeForDelivery(doc: StageDocument, opts: EncodeOptions): string;    // 실제 toolVersion 주석, 씨앗 전용 출처 제거 (ADR-E13)
 
 // number.ts
 export function formatNumber(n: number): string;      // SDD-09 §2-3. 정수 → "150", 실수 → 최단 왕복, 지수 표기 금지, NaN/Infinity → throw
@@ -366,11 +367,11 @@ export interface OpenedFile { name: string; text: string; handle: FileSystemFile
 export function openFile(): Promise<OpenedFile | null>;                       // 사용자가 취소하면 null
 // 저장은 **취소를 성공과 구분한다** (2026-09-06). 예전에는 둘 다 null 이라, 취소해도 호출부가
 //   markSaved() 를 불러 "저장됨" 으로 표시했고 창을 닫을 때 경고도 안 떴다.
-export type SaveOutcome = { status: 'saved'; handle: FileSystemFileHandle | null } | { status: 'cancelled' };
+export type SaveOutcome = { status: 'saved'; handle: FileSystemFileHandle | null; name: string } | { status: 'cancelled' };
 export function saveFile(text: string, handle: FileSystemFileHandle | null, suggestedName: string): Promise<SaveOutcome>;
 //   handle 이 있으면 덮어쓴다. 없으면 saveAs. FSAA 가 없으면 다운로드 후 { saved, handle: null }
 export function saveFileAs(text: string, suggestedName: string): Promise<SaveOutcome>;
-//   피커에서 AbortError 면 { cancelled } — 폴백 다운로드로 내려가지 않는다. 그 밖의 오류는 폴백.
+//   피커에서 AbortError 면 { cancelled }. 권한·읽기·쓰기·close 오류는 throw 하여 UI가 표시한다.
 export const hasFsAccess: boolean;                                            // 'showOpenFilePicker' in window
 // clipboard.ts
 export function copyText(text: string): Promise<boolean>;
